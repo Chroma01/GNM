@@ -358,7 +358,7 @@ class GNMNumpyTest(parameterized.TestCase):
       self.skipTest(f'variant {variant} not supported in {version}.')
     gnm_np = self.gnms[version][variant]
 
-    # Skip the finger tips, since they have zero weights.
+    # Skip the groups that are zero by design, e.g. the finger tips.
     valid_group_names = [
         n
         for n in gnm_np.vertex_group_names
