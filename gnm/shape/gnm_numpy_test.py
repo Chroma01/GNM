@@ -493,9 +493,7 @@ class GNMNumpyTest(parameterized.TestCase):
 
   @parameterized.product(
       version=_MAINTAINED_MAJOR_GNM_VERSIONS,
-      variant=tuple(
-          v.value for v in _SUPPORTED_VARIANTS if 'hand' not in v.value
-      ),
+      variant=tuple(_SUPPORTED_VARIANTS),
   )
   def test_mesh_component_names_include_skin(self, version: str, variant: str):
     """Check that the mesh_component_names include 'skin'."""

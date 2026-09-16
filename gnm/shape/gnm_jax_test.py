@@ -150,7 +150,9 @@ class GNMJaxTest(parameterized.TestCase):
 
     desired = gnm_np(**jax.tree.map(np.asarray, gnm_jax_parameters))
     np.testing.assert_almost_equal(
-        actual, desired, decimal=DTYPE_TO_DECIMAL[dtype]  # pyrefly: ignore[bad-index]
+        actual,
+        desired,
+        decimal=DTYPE_TO_DECIMAL[dtype],  # pyrefly: ignore[bad-index]
     )
 
   @parameterized.product(
@@ -297,7 +299,9 @@ class GNMJaxTest(parameterized.TestCase):
           identity=np.array(gnm_jax_parameters['identity'][i]),
       )
       np.testing.assert_almost_equal(
-          actual[i], desired, decimal=DTYPE_TO_DECIMAL[dtype]  # pyrefly: ignore[bad-index]
+          actual[i],
+          desired,
+          decimal=DTYPE_TO_DECIMAL[dtype],  # pyrefly: ignore[bad-index]
       )
 
   @parameterized.product(
@@ -313,7 +317,8 @@ class GNMJaxTest(parameterized.TestCase):
       variant: Any,
       batch_dim: int,
       use_random_kwargs: bool = False,
-      dtype: jnp.dtype = jnp.float32,  # pyrefly: ignore[bad-function-definition]
+      # pyrefly: ignore[bad-function-definition]
+      dtype: jnp.dtype = jnp.float32,
   ):
     variant_str = variant.value if hasattr(variant, 'value') else variant
     if variant_str not in self.gnms_np[version]:
