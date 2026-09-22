@@ -33,6 +33,14 @@ import numpy as np
 # Light intensity empirically chosen to match render_gnm.
 _LIGHT_INTENSITY = 3.34
 
+MITSUBA_USE_LEGACY_BSDF_API = tuple(
+    int(x)
+    for x in (
+        str(mi.__version__).split('.')  # pyrefly: ignore[missing-attribute]
+    )
+    if x.isdigit()
+) <= (3, 9, 1)
+
 
 class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
   """Integrator that implements GNM half-Lambert shading and flat shading."""
@@ -87,9 +95,16 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
         mi.Color3f(1.0, 1.0, 1.0),
     )
 
-    diffuse_reflectance = scene_intersection.bsdf().eval_diffuse_reflectance(
-        scene_intersection, is_valid
-    )
+    if MITSUBA_USE_LEGACY_BSDF_API:
+      diffuse_reflectance = scene_intersection.bsdf().eval_diffuse_reflectance(  # pyrefly: ignore[missing-attribute]
+          scene_intersection, is_valid
+      )
+    else:
+      diffuse_reflectance = (
+          scene_intersection.bsdf()
+          .eval_features(scene_intersection, is_valid)
+          .albedo
+      )
     base_color = vertex_colors * diffuse_reflectance
 
     if self.include_shading:
