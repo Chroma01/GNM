@@ -98,8 +98,11 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
     )
 
     if MITSUBA_USE_LEGACY_BSDF_API:
-      diffuse_reflectance = scene_intersection.bsdf().eval_diffuse_reflectance(  # pyrefly: ignore[missing-attribute]
-          scene_intersection, is_valid
+      bsdf = scene_intersection.bsdf()
+      diffuse_reflectance = (
+          bsdf.eval_diffuse_reflectance(  # pyrefly: ignore[missing-attribute]
+              scene_intersection, is_valid
+          )
       )
     else:
       diffuse_reflectance = (
