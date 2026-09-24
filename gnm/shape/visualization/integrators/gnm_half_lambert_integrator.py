@@ -33,13 +33,15 @@ import numpy as np
 # Light intensity empirically chosen to match render_gnm.
 _LIGHT_INTENSITY = 3.34
 
-MITSUBA_USE_LEGACY_BSDF_API = tuple(
+_MITSUBA_VERSION = tuple(
     int(x)
     for x in (
         str(mi.__version__).split('.')  # pyrefly: ignore[missing-attribute]
     )
     if x.isdigit()
-) <= (3, 9, 1)
+)
+MITSUBA_USE_LEGACY_BSDF_API = _MITSUBA_VERSION <= (3, 9, 1)
+MITSUBA_USE_LEGACY_SAMPLE_API = _MITSUBA_VERSION <= (3, 9, 1)
 
 
 class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
@@ -68,7 +70,7 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
       ray: mi.Ray3f,
       medium: mi.Medium | None = None,
       active: mi.Bool | bool = True,
-  ) -> tuple[mi.Spectrum, mi.Bool, list[mi.Float]]:
+  ) -> tuple[mi.Spectrum, mi.Bool]:
     """Samples the integrator.
 
     Args:
@@ -79,8 +81,8 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
       active: Whether the ray is active.
 
     Returns:
-      A tuple of the radiance, whether the ray is valid, and the list of
-      intermediate depths.
+      A tuple of the radiance and whether the ray is valid (plus an empty AOV
+      list on older Mitsuba versions).
     """
     del sampler, medium
     scene_intersection = scene.ray_intersect(ray, mi.Bool(active))
@@ -103,7 +105,7 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
       diffuse_reflectance = (
           scene_intersection.bsdf()
           .eval_features(scene_intersection, is_valid)
-          .albedo
+          .diffuse_albedo
       )
     base_color = vertex_colors * diffuse_reflectance
 
@@ -118,7 +120,9 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
       )
 
     radiance = dr.select(is_valid, radiance, mi.Color3f(0.0, 0.0, 0.0))
-    return mi.Spectrum(radiance), is_valid, []
+    if MITSUBA_USE_LEGACY_SAMPLE_API:
+      return mi.Spectrum(radiance), is_valid, []  # pyrefly: ignore[bad-return]
+    return mi.Spectrum(radiance), is_valid
 
   def _shade_half_lambert(
       self,
