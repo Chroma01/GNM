@@ -40,7 +40,7 @@ class VertexColorsTest(parameterized.TestCase):
       cls.models[version] = {}
       for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
         if variant in _SUPPORTED_VARIANTS:
-          cls.models[version][variant] = gnm_numpy.GNM.from_local(
+          cls.models[version][variant] = gnm_numpy.GNM.from_remote(
               gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
               gnm_numpy.GNMVariant(variant),
           )

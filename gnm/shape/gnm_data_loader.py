@@ -15,27 +15,17 @@
 """GNM data loader."""
 
 from collections.abc import Sequence
-import functools
 from typing import Any
 
-from absl import logging
 from etils import epath
 from gnm.shape import gnm_data_schema
 from gnm.shape.data.versions import gnm_models_catalog
 from gnm.shape.data.versions import gnm_specs
 import numpy as np
 
-_pkg = __package__ or 'gnm.shape'
-_MODELS_VERSIONS_DIR = epath.resource_path(f'{_pkg}.data.versions')
 _VARIANT_TO_MODEL_FILE_NAME_MAP = (
     gnm_models_catalog.VARIANT_TO_MODEL_FILE_NAME_MAP
 )
-
-
-class GNMModelDataNotLinkedError(Exception):
-  """Raised when a GNM model data is not linked into the binary."""
-
-  pass
 
 
 def major_to_newest_full_version(
@@ -68,32 +58,6 @@ def _get_model_filename(
   """Returns filename for model variant (e.g. 'gnm_head.npz')."""
   del version
   return f'{_VARIANT_TO_MODEL_FILE_NAME_MAP[variant]}.npz'
-
-
-def _get_model_path_from_version_and_variant(
-    version: gnm_specs.GNMMajorVersion,
-    variant: gnm_specs.GNMVariant,
-) -> epath.Path:
-  """Returns the GNM model runfiles path for given variant and version."""
-  version_dir_name = _get_version_dir_name(version)
-  model_file_name = _get_model_filename(version, variant)
-  return _MODELS_VERSIONS_DIR / version_dir_name / model_file_name
-
-
-@functools.lru_cache
-def load_model_from_runfile(
-    version: gnm_specs.GNMMajorVersion, variant: gnm_specs.GNMVariant
-) -> dict[str, Any]:
-  """Loads GNM model data from a runfile for the given version/variant."""
-  model_file = _get_model_path_from_version_and_variant(version, variant)
-
-  logging.info(
-      'Loading GNM model version %s, variant %s from runfiles: %s',
-      version,
-      variant,
-      model_file,
-  )
-  return _load_model_dict_from_file(model_file, version, variant)
 
 
 def _load_model_dict_from_file(

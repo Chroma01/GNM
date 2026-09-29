@@ -53,11 +53,11 @@ class GNMPytorchTest(parameterized.TestCase):
       cls.gnms_pytorch[version] = {}
       for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
         if variant in [v.value for v in _SUPPORTED_VARIANTS]:
-          cls.gnms_np[version][variant] = gnm_numpy.GNM.from_local(
+          cls.gnms_np[version][variant] = gnm_numpy.GNM.from_remote(
               gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
               gnm_numpy.GNMVariant(variant),
           )
-          cls.gnms_pytorch[version][variant] = gnm_pytorch.GNM.from_local(
+          cls.gnms_pytorch[version][variant] = gnm_pytorch.GNM.from_remote(
               gnm_pytorch.GNMMajorVersion(version.removeprefix('v')),
               gnm_pytorch.GNMVariant(variant),
           )
@@ -275,7 +275,7 @@ class GNMPytorchTest(parameterized.TestCase):
     gnm_np = self.gnms_np[version][variant_str]
     gnm_torch = self.gnms_pytorch[version][variant_str]
 
-    gnm_pruned = gnm_pytorch.GNM.from_local(
+    gnm_pruned = gnm_pytorch.GNM.from_remote(
         gnm_pytorch.GNMMajorVersion(version.removeprefix('v')),
         gnm_pytorch.GNMVariant(variant_str),
     )
@@ -459,11 +459,12 @@ class GNMPytorchFactoryMethodsTest(parameterized.TestCase):
       variant=tuple(_SUPPORTED_VARIANTS),
       version=gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS,
   )
-  def test_from_local_successful(self, variant, version):
-    if variant.value in gnm_test_catalog.MAJOR_VERSION_TO_VARIANTS_MAP[version]:
+  def test_from_remote_successful(self, variant, version):
+    variants = gnm_test_catalog.MAJOR_VERSION_TO_VARIANTS_MAP[version]
+    if variant.value in variants:
       major_version = gnm_pytorch.GNMMajorVersion(version[1:])
 
-      model = gnm_pytorch.GNM.from_local(major_version, variant)
+      model = gnm_pytorch.GNM.from_remote(major_version, variant)
       self.assertIsInstance(model, gnm_pytorch.GNM)
     else:
       self.skipTest(f'Variant {variant} not available in version {version}')

@@ -16,7 +16,7 @@
 
 Usage:
   ```
-  gnm = gnm_jax.GNM.from_local(
+  gnm = gnm_jax.GNM.from_remote(
       version=gnm_jax.GNMMajorVersion.V3, variant=gnm_jax.GNMVariant.HEAD
   )
 

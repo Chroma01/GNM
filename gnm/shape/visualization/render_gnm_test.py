@@ -55,7 +55,7 @@ class TestProjectPointsForGNM(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )

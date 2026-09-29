@@ -104,7 +104,7 @@ class RenderGNMTestBase(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )
@@ -549,7 +549,7 @@ class RenderGNMBatchTestBase(parameterized.TestCase):
     )
     self.mock_render.side_effect = mock_render
 
-    self.gnm_np = gnm_numpy.GNM.from_local(
+    self.gnm_np = gnm_numpy.GNM.from_remote(
         gnm_numpy.GNMMajorVersion(
             gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS[0].removeprefix('v')
         ),

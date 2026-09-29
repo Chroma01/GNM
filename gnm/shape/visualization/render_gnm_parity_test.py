@@ -34,7 +34,7 @@ class RenderGNMParityTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.gnm_np = gnm_numpy.GNM.from_local(
+    self.gnm_np = gnm_numpy.GNM.from_remote(
         gnm_numpy.GNMMajorVersion(
             gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS[0].removeprefix('v')
         ),

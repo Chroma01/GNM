@@ -96,7 +96,7 @@ class TestGetLookAtWorldToCamera(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )
@@ -208,7 +208,7 @@ class TestGetFillFactorCameraToImage(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )
@@ -250,7 +250,7 @@ class TestLoadTexture(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )
@@ -289,7 +289,7 @@ class TestProjectPointsForGnm(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )
@@ -326,7 +326,7 @@ class TestGetSpinWorldToCamera(parameterized.TestCase):
     super().setUpClass()
     cls.gnms = {}
     for version in gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS:
-      cls.gnms[version] = gnm_numpy.GNM.from_local(
+      cls.gnms[version] = gnm_numpy.GNM.from_remote(
           gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
           gnm_numpy.GNMVariant.HEAD,
       )
@@ -363,7 +363,7 @@ class TestRenderGNMMesh(parameterized.TestCase):
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    cls.gnm_np = gnm_numpy.GNM.from_local(
+    cls.gnm_np = gnm_numpy.GNM.from_remote(
         gnm_numpy.GNMMajorVersion(
             gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS[0].removeprefix('v')
         ),

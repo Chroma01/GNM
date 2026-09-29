@@ -150,7 +150,7 @@ class GNMNumpyTest(parameterized.TestCase):
       cls.gnms[version] = {}
       for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
         if variant in _SUPPORTED_VARIANTS:
-          cls.gnms[version][variant] = gnm_numpy.GNM.from_local(
+          cls.gnms[version][variant] = gnm_numpy.GNM.from_remote(
               gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
               gnm_numpy.GNMVariant(variant),
           )
@@ -1067,7 +1067,7 @@ class GNMNumpyFactoryMethodsTest(parameterized.TestCase):
       variant=tuple(_SUPPORTED_VARIANTS),
       version=_MAINTAINED_MAJOR_GNM_VERSIONS,
   )
-  def test_from_local_successful(self, variant, version):
+  def test_from_remote_successful(self, variant, version):
     if variant not in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
       self.skipTest(f'variant {variant} not supported in {version}.')
 
@@ -1075,7 +1075,7 @@ class GNMNumpyFactoryMethodsTest(parameterized.TestCase):
     major_version = gnm_numpy.GNMMajorVersion(version[1:])
     gnm_variant = gnm_numpy.GNMVariant(variant)
 
-    model = gnm_numpy.GNM.from_local(major_version, gnm_variant)
+    model = gnm_numpy.GNM.from_remote(major_version, gnm_variant)
     self.assertIsInstance(model, gnm_numpy.GNM)
 
 

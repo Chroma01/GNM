@@ -54,11 +54,11 @@ class GNMTensorflowTest(parameterized.TestCase):
       cls.gnms_tf[version] = {}
       for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
         if variant in [v.value for v in _SUPPORTED_VARIANTS]:
-          cls.gnms_np[version][variant] = gnm_numpy.GNM.from_local(
+          cls.gnms_np[version][variant] = gnm_numpy.GNM.from_remote(
               gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
               gnm_numpy.GNMVariant(variant),
           )
-          cls.gnms_tf[version][variant] = gnm_tensorflow.GNM.from_local(
+          cls.gnms_tf[version][variant] = gnm_tensorflow.GNM.from_remote(
               gnm_tensorflow.GNMMajorVersion(version.removeprefix('v')),
               gnm_tensorflow.GNMVariant(variant),
           )
@@ -313,7 +313,7 @@ class GNMTensorflowTest(parameterized.TestCase):
     gnm_np = self.gnms_np[version][variant]
     gnm_tf = self.gnms_tf[version][variant]
 
-    gnm_pruned = gnm_tensorflow.GNM.from_local(
+    gnm_pruned = gnm_tensorflow.GNM.from_remote(
         gnm_tensorflow.GNMMajorVersion(version.removeprefix('v')),
         gnm_tensorflow.GNMVariant(variant),
     )
@@ -514,11 +514,12 @@ class GNMTensorflowFactoryMethodsTest(parameterized.TestCase):
       variant=list(_SUPPORTED_VARIANTS),
       version=gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS,
   )
-  def test_from_local_successful(self, variant, version):
-    if variant.value in gnm_test_catalog.MAJOR_VERSION_TO_VARIANTS_MAP[version]:
+  def test_from_remote_successful(self, variant, version):
+    variants = gnm_test_catalog.MAJOR_VERSION_TO_VARIANTS_MAP[version]
+    if variant.value in variants:
       major_version = gnm_tensorflow.GNMMajorVersion(version[1:])
 
-      model = gnm_tensorflow.GNM.from_local(major_version, variant)
+      model = gnm_tensorflow.GNM.from_remote(major_version, variant)
       self.assertIsInstance(model, gnm_tensorflow.GNM)
     else:
       self.skipTest(f'Variant {variant} not available in version {version}')

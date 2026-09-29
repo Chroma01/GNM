@@ -16,7 +16,7 @@
 
 Example usage:
   ```
-  gnm = gnm_numpy.GNM.from_local(
+  gnm = gnm_numpy.GNM.from_remote(
       version=gnm_numpy.GNMMajorVersion.V3, variant=gnm_numpy.GNMVariant.HEAD
   )
 

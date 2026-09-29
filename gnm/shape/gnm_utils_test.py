@@ -47,7 +47,7 @@ class BaseGNMUtilsTest(parameterized.TestCase):
     for version in _MAINTAINED_MAJOR_GNM_VERSIONS:
       cls.gnms[version] = {}
       for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
-        cls.gnms[version][variant] = gnm_numpy.GNM.from_local(
+        cls.gnms[version][variant] = gnm_numpy.GNM.from_remote(
             gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
             gnm_numpy.GNMVariant(variant),
         )

@@ -43,7 +43,7 @@ class ProjectOnPcaTest(parameterized.TestCase):
           gnm_numpy.GNMVariant.HEAD
           in gnm_test_catalog.MAJOR_VERSION_TO_VARIANTS_MAP[version]
       ):
-        cls.gnms[version] = gnm_numpy.GNM.from_local(
+        cls.gnms[version] = gnm_numpy.GNM.from_remote(
             gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
             gnm_numpy.GNMVariant.HEAD,
         )
@@ -111,7 +111,7 @@ class ProjectOnPcaTest(parameterized.TestCase):
     num_components, threshold = num_components_and_threshold
 
     major_version = gnm_numpy.GNMMajorVersion(version.removeprefix('v'))
-    gnm = gnm_numpy.GNM.from_local(major_version, gnm_numpy.GNMVariant.HEAD)
+    gnm = gnm_numpy.GNM.from_remote(major_version, gnm_numpy.GNMVariant.HEAD)
 
     identity = self.rng.uniform(low=-1.5, high=1.5, size=gnm.identity_dim)
     expression = np.zeros(gnm.expression_dim)
@@ -158,7 +158,7 @@ class ProjectOnPcaTest(parameterized.TestCase):
     batch_size, num_components, threshold = batch_size_num_components_threshold
 
     major_version = gnm_numpy.GNMMajorVersion(version.removeprefix('v'))
-    gnm = gnm_numpy.GNM.from_local(major_version, gnm_numpy.GNMVariant.HEAD)
+    gnm = gnm_numpy.GNM.from_remote(major_version, gnm_numpy.GNMVariant.HEAD)
 
     identity = self.rng.uniform(
         low=-1.5, high=1.5, size=(batch_size, gnm.identity_dim)
@@ -212,7 +212,7 @@ class ProjectOnPcaTest(parameterized.TestCase):
 
     batch_size, num_components, threshold = batch_size_num_components_threshold
     major_version = gnm_numpy.GNMMajorVersion(version.removeprefix('v'))
-    gnm = gnm_numpy.GNM.from_local(major_version, gnm_numpy.GNMVariant.HEAD)
+    gnm = gnm_numpy.GNM.from_remote(major_version, gnm_numpy.GNMVariant.HEAD)
 
     expected_regions = [
         'left_eye_region',

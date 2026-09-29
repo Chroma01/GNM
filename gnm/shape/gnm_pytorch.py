@@ -16,7 +16,7 @@
 
 Usage:
   ```
-  gnm = gnm_pytorch.GNM.from_local(
+  gnm = gnm_pytorch.GNM.from_remote(
       version=gnm_pytorch.GNMMajorVersion.V3,
       variant=gnm_pytorch.GNMVariant.HEAD,
   )

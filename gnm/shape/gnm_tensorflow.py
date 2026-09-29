@@ -16,7 +16,7 @@
 
 Usage:
   ```
-  gnm = gnm_tensorflow.GNM.from_local(
+  gnm = gnm_tensorflow.GNM.from_remote(
       version=gnm_tensorflow.GNMMajorVersion.V3,
       variant=gnm_tensorflow.GNMVariant.HEAD,
   )

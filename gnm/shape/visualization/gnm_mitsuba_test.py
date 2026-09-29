@@ -40,7 +40,7 @@ class GNMMitsubaTest(parameterized.TestCase):
     if not mi.variant():
       mi.set_variant('cuda_ad_rgb', 'llvm_ad_rgb')
     cls.gnms = {
-        version: gnm_numpy.GNM.from_local(
+        version: gnm_numpy.GNM.from_remote(
             gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
             gnm_numpy.GNMVariant.HEAD,
         )

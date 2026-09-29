@@ -33,9 +33,6 @@ from gnm.shape.data.versions import gnm_test_catalog
 from gnm.shape.oss_data_loaders import oss_data_loaders
 import numpy as np
 
-_MAINTAINED_MAJOR_GNM_VERSIONS = gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS
-_MAJOR_VERSION_TO_VARIANTS_MAP = gnm_test_catalog.MAJOR_VERSION_TO_VARIANTS_MAP
-
 
 def _get_dummy_gnm_data_dict() -> dict[str, Any]:
   """Returns a dummy GNM data dictionary."""
@@ -79,41 +76,6 @@ class GNMDataTest(parameterized.TestCase):
     print('\nAvailable GNM MajorMinor Versions:')
     for version in gnm_specs.GNMVersion:
       print(f'  {version.name}: {version.value}')
-
-
-class GNMModelLoadingTest(parameterized.TestCase):
-  """Tests for loading GNM model files."""
-
-  def setUp(self):
-    super().setUp()
-    gnm_data_loader.load_model_from_runfile.cache_clear()
-
-  @parameterized.product(
-      version=_MAINTAINED_MAJOR_GNM_VERSIONS,
-      variant=gnm_test_catalog.ALL_VARIANTS,
-  )
-  def test_load_model_from_runfile_successful(self, version, variant):
-    if variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
-      # Convert string version/variant to Enums.
-      major_version = gnm_specs.GNMMajorVersion(version[1:])
-      gnm_variant = gnm_specs.GNMVariant(variant)
-
-      data = gnm_data_loader.load_model_from_runfile(major_version, gnm_variant)
-      self.assertIsInstance(data, dict)
-    else:
-      self.skipTest(f'Variant {variant} not available in version {version}')
-
-  def test_load_model_from_runfile_fails_when_file_not_found(self):
-    with mock.patch.object(
-        gnm_data_loader,
-        '_get_model_path_from_version_and_variant',
-        return_value=epath.Path('/non/existent/model/file.npz'),
-    ):
-      with self.assertRaises(FileNotFoundError):
-        gnm_data_loader.load_model_from_runfile(
-            gnm_specs.GNMMajorVersion.V3,
-            gnm_specs.GNMVariant.HEAD,
-        )
 
 
 class GNMRemoteModelLoadingTest(parameterized.TestCase):

@@ -41,7 +41,7 @@ class GNMPyrenderTest(parameterized.TestCase):
   def setUpClass(cls):
     super().setUpClass()
     cls.gnms = {
-        version: gnm_numpy.GNM.from_local(
+        version: gnm_numpy.GNM.from_remote(
             gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
             gnm_numpy.GNMVariant.HEAD,
         )
