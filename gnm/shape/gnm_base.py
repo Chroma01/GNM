@@ -27,6 +27,9 @@ from gnm.shape.data.versions import gnm_specs
 from typing_extensions import deprecated
 
 
+
+# `from_custom_file`) into separate public/internal mixin modules, selected via
+# copybara, to reduce the number of copybara strips in this class.
 @dataclasses.dataclass(init=False)
 class GNMBase(abc.ABC):
   """Base GNM class."""
@@ -93,6 +96,25 @@ class GNMBase(abc.ABC):
         cache_dir=cache_dir,
         force_download=force_download,
     )
+    return cls._from_model_data(data_dict)
+
+  @classmethod
+  def from_custom_file(
+      cls,
+      model_file: epath.PathLike,
+  ) -> Self:
+    """Creates a GNM instance from a custom model file.
+
+    The model file must be an .npz archive containing all the expected GNM
+    attributes. Extra attributes are ignored.
+
+    Args:
+      model_file: Path to the GNM model file (.npz) as Path or str.
+
+    Returns:
+      A GNM instance loaded with the model weights.
+    """
+    data_dict = gnm_data_loader.load_model_from_custom_file(model_file)
     return cls._from_model_data(data_dict)
 
   @classmethod

@@ -127,6 +127,16 @@ mesh = trimesh.Trimesh(vertices=template_vertices, faces=faces, process=False)
 mesh.export("template_face.obj")
 ```
 
+### Loading a GNM Model from a Custom File
+
+A GNM model can also be loaded from a local `.npz` model file (e.g. one that
+you downloaded manually). The file must contain all the GNM model fields;
+unknown extra fields are ignored with a warning.
+
+```python
+gnm = gnm_numpy.GNM.from_custom_file("/path/to/gnm_head.npz")
+```
+
 ### Basic Parameter Manipulation
 You can generate a mesh by providing parameters for identity, expression,
 joint rotations, and translation.
