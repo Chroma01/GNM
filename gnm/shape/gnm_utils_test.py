@@ -21,6 +21,7 @@ import functools
 from absl.testing import absltest
 from absl.testing import parameterized
 from gnm.shape import gnm_numpy
+from gnm.shape import gnm_test_utils
 from gnm.shape import gnm_utils
 from gnm.shape.data.versions import gnm_test_catalog
 import numpy as np
@@ -37,33 +38,41 @@ _BODY_VARIANTS = frozenset()
 _UPPER_BODY_VARIANTS = frozenset()
 
 
-@functools.cache
-def _load_gnms() -> dict[str, dict[str, gnm_numpy.GNM]]:
-  """Loads all maintained GNMs once and shares them across test classes."""
-  gnms = {}
-  for version in _MAINTAINED_MAJOR_GNM_VERSIONS:
-    gnms[version] = {}
-    for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
-      gnms[version][variant] = gnm_numpy.GNM.from_remote(
-          gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
-          gnm_numpy.GNMVariant(variant),
-      )
-  return gnms
-
-
 class BaseGNMUtilsTest(parameterized.TestCase):
+  """Base class loading the GNMs on demand.
 
-  gnms: dict[str, dict[str, gnm_numpy.GNM]]
+  Attributes:
+    gnms: The GNMs, by version and variant.
+    max_loaded: The maximum number of models kept in memory at once, e.g. 2 for
+      tests using two models at once. If None, all the models of a version are
+      kept in memory.
+  """
+
+  gnms: gnm_test_utils.LazyGNMDict[gnm_numpy.GNM]
+  max_loaded: int | None = 1
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    # The GNM loaders don't cache models, so share the loaded instances across
-    # all test classes to keep the test memory and runtime down.
-    cls.gnms = _load_gnms()
+    variants_by_version = {
+        version: _MAJOR_VERSION_TO_VARIANTS_MAP[version]
+        for version in _MAINTAINED_MAJOR_GNM_VERSIONS
+    }
+    max_loaded = cls.max_loaded
+    if max_loaded is None:
+      max_loaded = max(len(v) for v in variants_by_version.values())
+    cls.gnms = gnm_test_utils.LazyGNMDict(
+        functools.partial(gnm_test_utils.load_gnm, gnm_numpy.GNM),
+        variants_by_version,
+        max_loaded=max_loaded,
+    )
+    cls.addClassCleanup(cls.gnms.clear)
 
 
 class GNMUtilsConversionTest(BaseGNMUtilsTest):
+  # Tests pair every variant with every other one, so keep all the models of a
+  # version rather than reloading them for each pair.
+  max_loaded = None
 
   @parameterized.product(
       version=_MAINTAINED_MAJOR_GNM_VERSIONS,
@@ -653,4 +662,4 @@ class GNMUtilsMethodsTest(BaseGNMUtilsTest):
 
 
 if __name__ == '__main__':
-  absltest.main()
+  absltest.main(testLoader=gnm_test_utils.ModelOrderedTestLoader())

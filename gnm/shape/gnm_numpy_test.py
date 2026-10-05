@@ -18,6 +18,7 @@
 
 from collections.abc import Sequence
 import copy
+import functools
 import itertools
 import re
 import time
@@ -26,6 +27,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from gnm.shape import gnm_data_schema
 from gnm.shape import gnm_numpy
+from gnm.shape import gnm_test_utils
 from gnm.shape import gnm_utils
 from gnm.shape.data.versions import gnm_test_catalog
 import numpy as np
@@ -140,20 +142,24 @@ def get_eye_test_cases():
 
 
 class GNMNumpyTest(parameterized.TestCase):
-  gnms: dict[str, dict[str, gnm_numpy.GNM]]
+  gnms: gnm_test_utils.LazyGNMDict[gnm_numpy.GNM]
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    cls.gnms = {}
-    for version in _MAINTAINED_MAJOR_GNM_VERSIONS:
-      cls.gnms[version] = {}
-      for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]:
-        if variant in _SUPPORTED_VARIANTS:
-          cls.gnms[version][variant] = gnm_numpy.GNM.from_remote(
-              gnm_numpy.GNMMajorVersion(version.removeprefix('v')),
-              gnm_numpy.GNMVariant(variant),
-          )
+    # Load the models on demand, keeping one in memory at a time.
+    cls.gnms = gnm_test_utils.LazyGNMDict(
+        functools.partial(gnm_test_utils.load_gnm, gnm_numpy.GNM),
+        variants_by_version={
+            version: [
+                variant
+                for variant in _MAJOR_VERSION_TO_VARIANTS_MAP[version]
+                if variant in _SUPPORTED_VARIANTS
+            ]
+            for version in _MAINTAINED_MAJOR_GNM_VERSIONS
+        },
+    )
+    cls.addClassCleanup(cls.gnms.clear)
 
   def setUp(self):
     super().setUp()
@@ -726,14 +732,15 @@ class GNMNumpyTest(parameterized.TestCase):
           pose_correctives, case['expected_pose_correctives'], atol=1e-6
       )
 
-  @parameterized.parameters(
-      _MAINTAINED_MAJOR_GNM_VERSIONS,
+  @parameterized.product(
+      version=_MAINTAINED_MAJOR_GNM_VERSIONS,
+      variant=('head',),
   )
-  def test_multiple_vertex_groups(self, version: str):
+  def test_multiple_vertex_groups(self, version: str, variant: str):
     """Test we can combine multiple vertex groups."""
-    if 'head' not in self.gnms[version]:
-      self.skipTest(f'variant head not supported in {version}.')
-    gnm = self.gnms[version]['head']
+    if variant not in self.gnms[version]:
+      self.skipTest(f'variant {variant} not supported in {version}.')
+    gnm = self.gnms[version][variant]
 
     # Compare two ways of combining both eyeballs fully.
     np.testing.assert_array_equal(
@@ -1076,4 +1083,4 @@ class GNMNumpyFactoryMethodsTest(parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  absltest.main()
+  absltest.main(testLoader=gnm_test_utils.ModelOrderedTestLoader())
