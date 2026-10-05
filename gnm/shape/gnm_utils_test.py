@@ -570,7 +570,7 @@ class GNMUtilsMethodsTest(BaseGNMUtilsTest):
         gnm_utils.joint_rotations_to_regions(orig_joint_rotations, gnm)
     )
     missing_joint = gnm.joint_names[missing_joint_index]
-    regions.pop(missing_joint)  # pyrefly: ignore[bad-argument-type]
+    regions.pop(missing_joint)
 
     orig_joint_rotations[..., missing_joint_index, :] = 0.0
     joint_rotations_again = gnm_utils.regions_to_joint_rotations(regions, gnm)

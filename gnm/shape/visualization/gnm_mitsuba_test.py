@@ -124,10 +124,10 @@ class GNMMitsubaTest(parameterized.TestCase):
       )
     else:
       self.assertTrue(
-          mesh.has_normals()  # pyrefly: ignore[missing-attribute]
+          mesh.has_normals()
       )
       self.assertTrue(
-          mesh.has_texcoords()  # pyrefly: ignore[missing-attribute]
+          mesh.has_texcoords()
       )
     self.assertTrue(mesh.has_attribute('vertex_colors'))
 
@@ -162,7 +162,7 @@ class GNMMitsubaTest(parameterized.TestCase):
       )
     else:
       self.assertTrue(
-          mesh.has_normals()  # pyrefly: ignore[missing-attribute]
+          mesh.has_normals()
       )
 
   def test_create_mitsuba_mesh_no_colors(self):

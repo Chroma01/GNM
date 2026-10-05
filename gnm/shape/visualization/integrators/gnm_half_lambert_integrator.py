@@ -26,8 +26,8 @@ callback. Callers should invoke the package-level `register()` (see
 
 from __future__ import annotations
 
-import drjit as dr  # pyrefly: ignore[missing-import]
-import mitsuba as mi  # pyrefly: ignore[missing-import]
+import drjit as dr
+import mitsuba as mi
 import numpy as np
 
 # Light intensity empirically chosen to match render_gnm.
@@ -59,7 +59,7 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
         props.get(
             'light_intensity',
             _LIGHT_INTENSITY,
-        )  # pyrefly: ignore[bad-argument-type]
+        )
     )
     self.include_shading = bool(props.get('include_shading', True))
 
@@ -118,7 +118,7 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
           diffuse_reflectance=diffuse_reflectance,
       )
     else:
-      radiance = dr.power(  # pyrefly: ignore[unsupported-operation]
+      radiance = dr.power(
           base_color, 2.2
       )
 
@@ -180,7 +180,7 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
     # GLTF PBR specular (Cook-Torrance) with roughness=1.0, metallic=0.0:
     # Schlick Fresnel, Smith geometry term, and a constant (roughness=1) NDF.
     fresnel = 0.04 + mi.Float(0.96) * (
-        dr.power(1.0 - v_dot_h, 5.0)  # pyrefly: ignore[unsupported-operation]
+        dr.power(1.0 - v_dot_h, 5.0)
     )
     geometry_view = n_dot_v / (0.5 * n_dot_v + 0.5)
     geometry_light = n_dot_l / (0.5 * n_dot_l + 0.5)
@@ -191,14 +191,14 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
     diffuse_contrib = mi.Color3f(
         (1.0 - fresnel)
         * diffuse_color
-        / np.pi  # pyrefly: ignore[unsupported-operation]
+        / np.pi
     )
 
     spec_contrib = mi.Color3f(
         (fresnel * geometry * distribution)
         / (
             4.0 * n_dot_l * n_dot_v + 0.001
-        )  # pyrefly: ignore[unsupported-operation]
+        )
     )
 
     return mi.Color3f(

@@ -130,7 +130,7 @@ class ProjectOnPcaTest(parameterized.TestCase):
     # components is not expected to be the same as using all components.
     mean_error = np.linalg.norm(
         result.reconstruction - vertices, axis=-1
-    ).mean()  # pyrefly: ignore[unsupported-operation]
+    ).mean()
     mesh_error = mean_error * _M_TO_MM
     self.assertLess(mesh_error, threshold)
 

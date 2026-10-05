@@ -62,7 +62,7 @@ class GNMXnpTest(absltest.TestCase):
 
   def test_cannot_instantiate_abstract_gnm(self):
     with self.assertRaises(TypeError):
-      gnm_xnp.GNM()  # pytype: disable=not-instantiable,missing-parameter  # pylint: disable=abstract-class-instantiated
+      gnm_xnp.GNM()  # pylint: disable=abstract-class-instantiated  # pyrefly: ignore[bad-instantiation]
 
   def test_from_model_data_raises_not_implemented(self):
     with self.assertRaises(NotImplementedError):
@@ -70,7 +70,7 @@ class GNMXnpTest(absltest.TestCase):
 
   def test_cannot_instantiate_concrete_gnm_via_constructor(self):
     with self.assertRaises(TypeError):
-      gnm_numpy.GNM()  # pytype: disable=not-instantiable,missing-parameter
+      gnm_numpy.GNM()
 
   def test_to_numpy_data_dict_does_not_share_memory_with_instance(self):
     gnm = gnm_numpy.GNM._from_model_data(_get_placeholder_model_data())  # pylint: disable=protected-access

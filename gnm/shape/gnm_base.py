@@ -121,7 +121,7 @@ class GNMBase(abc.ABC):
   def from_gnm(cls, gnm: GNMBase) -> Self:
     """Creates a GNM instance from another GNM instance."""
     data_dict = gnm.to_numpy_data_dict()
-    return cls._from_model_data(data_dict)  # pyrefly: ignore[bad-return]
+    return cls._from_model_data(data_dict)
 
   @abc.abstractmethod
   def to_numpy_data_dict(self) -> dict[str, Any]:

@@ -101,7 +101,7 @@ class GNMJaxTest(parameterized.TestCase):
       n_batch = (n_batch,)
 
     expression_shape = (*n_batch, gnm_np.expression_dim)
-    return {  # pyrefly: ignore[bad-return]
+    return {
         # pyrefly: ignore[bad-assignment]
         'identity': self.rng.uniform(size=(*n_batch, gnm_np.identity_dim)),
         # pyrefly: ignore[bad-assignment]

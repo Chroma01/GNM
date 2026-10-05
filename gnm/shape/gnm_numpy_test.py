@@ -99,7 +99,7 @@ def get_pose_correctives_test_cases(gnm_np: gnm_numpy.GNM):
   )
   test_cases.append({
       'pose_correctives_regressor': (
-          pose_correctives_regressor.T  # pyrefly: ignore[bad-assignment]
+          pose_correctives_regressor.T
       ),
       'rotations': rotations,
       'expected_pose_correctives': expected_pose_correctives,
@@ -747,7 +747,7 @@ class GNMNumpyTest(parameterized.TestCase):
     self.assertEmpty(gnm.vertex_group_indices('left', '-left'))
     np.testing.assert_equal(gnm.vertex_group_mask('~left', 'left'), True)
     np.testing.assert_equal(gnm.vertex_group_mask('left', '~left'), True)
-    neg_mask = ~gnm.vertex_group_mask(  # pyrefly: ignore[unsupported-operation]
+    neg_mask = ~gnm.vertex_group_mask(
         'left'
     )
     np.testing.assert_equal(
