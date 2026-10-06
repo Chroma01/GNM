@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Render a GNM mesh with Mitsuba."""
+"""Render a GNM mesh with Mitsuba.
+
+This is the rendering backend of `render_gnm_mitsuba`, which prepares and
+batches its arguments; call `render_gnm_mitsuba.render_gnm` rather than `render`
+directly.
+"""
 
 from __future__ import annotations
 

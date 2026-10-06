@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Render a GNM mesh with pyrender."""
+"""Render a GNM mesh with pyrender.
+
+This is the rendering backend of `render_gnm`, which prepares and batches its
+arguments; call `render_gnm.render_gnm` rather than `render` directly.
+"""
 
 import collections.abc
 import functools
