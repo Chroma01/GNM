@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import dataclasses
-from typing import Any
+from typing import Any, Self
 
 from absl import logging
 from etils import enp
@@ -122,7 +122,7 @@ class GNM(gnm_xnp.GNM):
   def _from_model_data(
       cls,
       model_data: Mapping[str, Any],
-  ) -> GNM:
+  ) -> Self:
     """Creates a TensorFlow GNM instance from model data."""
     return cls._from_model_data_with_xnp(model_data, xnp=enp.lazy.tnp)
 

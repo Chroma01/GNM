@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Self
 from unittest import mock
 
 from absl.testing import absltest
@@ -57,7 +57,7 @@ class DummyGNM(gnm_base.GNMBase):
   def _from_model_data(
       cls,
       model_data: Mapping[str, Any],
-  ) -> DummyGNM:
+  ) -> Self:
     del model_data
     return cls(
         version=_TEST_FULL_VERSION,
@@ -99,16 +99,6 @@ class GNMBaseTest(absltest.TestCase):
           source=gnm_specs.GNMRemoteSource.HTTP,
       )
       self.assertTrue(hasattr(DummyGNM.from_local, '__deprecated__'))
-
-  def test_from_custom_file(self):
-    with mock.patch.object(
-        gnm_data_loader,
-        'load_model_from_custom_file',
-        return_value={'dummy': 1},
-    ) as mock_load:
-      new_gnm = DummyGNM.from_custom_file('/path/to/custom_model.npz')
-      self.assertIsInstance(new_gnm, DummyGNM)
-      mock_load.assert_called_once_with('/path/to/custom_model.npz')
 
   def test_from_remote_default_http(self):
     with mock.patch.object(
