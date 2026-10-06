@@ -56,9 +56,9 @@ class DummyGNM(gnm_base.GNMBase):
   @classmethod
   def _from_model_data(
       cls,
-      data_dict: Mapping[str, Any],
+      model_data: Mapping[str, Any],
   ) -> DummyGNM:
-    del data_dict
+    del model_data
     return cls(
         version=_TEST_FULL_VERSION,
         variant=_TEST_VARIANT,

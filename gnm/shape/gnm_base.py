@@ -132,7 +132,7 @@ class GNMBase(abc.ABC):
   @abc.abstractmethod
   def _from_model_data(
       cls,
-      data_dict: Mapping[str, Any],
+      model_data: Mapping[str, Any],
   ) -> Self:
     """Creates a GNM instance from a model data."""
     pass
