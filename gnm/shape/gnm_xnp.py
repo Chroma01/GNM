@@ -166,12 +166,22 @@ class GNM(gnm_base.GNMBase):
     self._xnp = enp.get_np_module(self.template_vertex_positions)
 
   @classmethod
+  @abc.abstractmethod
+  def _get_np_module(cls) -> enp.NpModule:
+    """Returns the array module (e.g., np, jnp, torch, tnp) for this backend."""
+    raise NotImplementedError(
+        f'{cls.__name__} is an abstract backend-agnostic base class and'
+        ' does not define a backend array module. Use a concrete backend'
+        ' subclass (e.g., gnm_numpy.GNM, gnm_pytorch.GNM).'
+    )
+
+  @classmethod
   def _prepare_init_kwargs(
       cls,
       model_data: Mapping[str, Any],
-      xnp: enp.NpModule,
   ) -> dict[str, Any]:
     """Prepares and casts GNM initialization arguments using xnp."""
+    xnp = cls._get_np_module()
     init_kwargs = {}
 
     # Identify type convert functions.
@@ -217,13 +227,12 @@ class GNM(gnm_base.GNMBase):
     return init_kwargs
 
   @classmethod
-  def _from_model_data_with_xnp(
+  def _from_model_data(
       cls,
       model_data: Mapping[str, Any],
-      xnp: enp.NpModule,
   ) -> Self:
-    """Creates a GNM instance from a model data dictionary and array module."""
-    init_kwargs = cls._prepare_init_kwargs(model_data, xnp)
+    """Creates a GNM instance from a model data dictionary."""
+    init_kwargs = cls._prepare_init_kwargs(model_data)
     # pylint: disable=no-value-for-parameter
     instance = super(GNM, cls).__new__(cls)
     # pylint: enable=no-value-for-parameter
@@ -231,19 +240,6 @@ class GNM(gnm_base.GNMBase):
       object.__setattr__(instance, k, v)
     instance.__post_init__()
     return instance
-
-  @classmethod
-  @abc.abstractmethod
-  def _from_model_data(
-      cls,
-      model_data: Mapping[str, Any],
-  ) -> Self:
-    """Creates a GNM instance from a model data dictionary."""
-    raise NotImplementedError(
-        f'{cls.__name__} is an abstract backend-agnostic base class and'
-        ' cannot be loaded directly. Use a concrete backend subclass (e.g.,'
-        ' gnm_numpy.GNM, gnm_pytorch.GNM).'
-    )
 
   def to_numpy_data_dict(self) -> dict[str, Any]:
     """Returns a dictionary of the GNM data represented as NumPy arrays.
