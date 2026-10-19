@@ -185,9 +185,13 @@ class GNMTensorflowTest(parameterized.TestCase):
     gnm_tf = self.gnms_tf[version][variant]
 
     # Build a batch of random parameters.
-    gnm_tf_parameters = gnm_test_utils.random_gnm_parameters(
+    parameters_np = gnm_test_utils.random_gnm_parameters(
         gnm_np, batch_shape=batch_dims, seed=self.rng
     )
+    gnm_tf_parameters = {
+        k: tf.convert_to_tensor(v, dtype=tf.float32)
+        for k, v in parameters_np.items()
+    }
 
     desired = gnm_tf(**gnm_tf_parameters)
 
@@ -329,15 +333,17 @@ class GNMTensorflowTest(parameterized.TestCase):
 
     # Build a batch of random parameters.
     n_batch = 10
-    gnm_tf_parameters = gnm_test_utils.random_gnm_parameters(
+    parameters_np = gnm_test_utils.random_gnm_parameters(
         gnm_np, batch_shape=(n_batch,), seed=self.rng
     )
+    gnm_tf_parameters = {
+        k: tf.convert_to_tensor(v, dtype=tf.float32)
+        for k, v in parameters_np.items()
+    }
 
     vertices_tf = gnm_tf(**gnm_tf_parameters)
     vertices_gathered = tf.gather(vertices_tf, keep_vertices, axis=1)
-    vertices_pruned = gnm_pruned(
-        **gnm_tf_parameters
-    )
+    vertices_pruned = gnm_pruned(**gnm_tf_parameters)
 
     with self.subTest('Test number of vertices'):
       self.assertLen(keep_vertices, gnm_pruned.num_vertices)
@@ -365,7 +371,7 @@ class GNMTensorflowTest(parameterized.TestCase):
     gnm_np = self.gnms_np[version][variant]
     gnm_tf = self.gnms_tf[version][variant]
     parameters = {
-        k: v[0]
+        k: tf.convert_to_tensor(v[0], dtype=tf.float32)
         for k, v in gnm_test_utils.random_gnm_parameters(
             gnm_np, batch_shape=(1,), seed=self.rng
         ).items()
@@ -407,9 +413,13 @@ class GNMTensorflowTest(parameterized.TestCase):
     gnm_np = self.gnms_np[version][variant]
     gnm_tf = self.gnms_tf[version][variant]
 
-    parameters = gnm_test_utils.random_gnm_parameters(
+    parameters_np = gnm_test_utils.random_gnm_parameters(
         gnm_np, batch_shape=batch_dims, seed=self.rng
     )
+    parameters = {
+        k: tf.convert_to_tensor(v, dtype=tf.float32)
+        for k, v in parameters_np.items()
+    }
     # Omit some parameters.
     for keys in itertools.combinations(parameters, parameter_count):
       sub_parameters = {k: parameters[k] for k in keys}
