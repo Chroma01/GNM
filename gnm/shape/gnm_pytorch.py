@@ -48,6 +48,7 @@ GNMMajorVersion = gnm_specs.GNMMajorVersion
 GNMVariant = gnm_specs.GNMVariant
 GNMBodyPart = gnm_specs.GNMBodyPart
 GNMLandmarksType = gnm_landmarks.GNMLandmarksType
+
 GNMRemoteSource = gnm_specs.GNMRemoteSource
 
 
@@ -89,8 +90,10 @@ class GNM(gnm_xnp.GNM, torch.nn.Module):
     skinning_weights: The model's skinning weights, (J, V).
     quads: The mesh topology as quads, (Q, 4).
     triangles: The mesh topology as triangles, (T, 3).
-    quad_uvs: Texture coordinates per quad, (Q, 4, 2).
-    triangle_uvs: Texture coordinates per triangle, (T, 3, 2).
+    quad_uvs: Texture coordinates per quad, (Q, 4, 2). All regions share the
+      unit square and overlap there; prefer `quad_uvs_udim`.
+    triangle_uvs: Texture coordinates per triangle, (T, 3, 2). All regions share
+      the unit square and overlap there; prefer `triangle_uvs_udim`.
     mesh_component_names: The vertex group name corresponding to each separate
       mesh part.
     mirror_indices: The index of each vertex on the other side of the mesh.
@@ -106,6 +109,10 @@ class GNM(gnm_xnp.GNM, torch.nn.Module):
     num_joints: The number of joints in the skeleton J.
     identity_dim: The dimensionality of the linear identity basis I.
     expression_dim: The dimensionality of the linear expression basis E.
+    quad_udim_tiles: The UDIM tile number of each quad, (Q,).
+    triangle_udim_tiles: The UDIM tile number of each triangle, (T,).
+    quad_uvs_udim: Per-quad UDIM texture coordinates, (Q, 4, 2).
+    triangle_uvs_udim: Per-triangle UDIM texture coordinates, (T, 3, 2).
   """
 
   _shape_error_type = RuntimeError
