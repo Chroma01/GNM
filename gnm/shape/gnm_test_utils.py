@@ -17,7 +17,7 @@
 import collections
 from collections.abc import Callable, Iterable, Iterator, Mapping
 import inspect
-from typing import Any, TypeVar
+from typing import Any
 import unittest
 
 from absl.testing import absltest
@@ -110,11 +110,9 @@ def random_gnm_parameters(
   return {k: v.astype(dtype) for k, v in parameters.items()}
 
 
-_ModelT = TypeVar('_ModelT')
-_GNMT = TypeVar('_GNMT', bound=gnm_xnp.GNM)
-
-
-def load_gnm(gnm_cls: type[_GNMT], version: str, variant: str) -> _GNMT:
+def load_gnm[GNMT: gnm_xnp.GNM](
+    gnm_cls: type[GNMT], version: str, variant: str
+) -> GNMT:
   """Loads a GNM model for tests.
 
   Internally, this loads the model from the runfiles. In the public release, it
@@ -133,7 +131,7 @@ def load_gnm(gnm_cls: type[_GNMT], version: str, variant: str) -> _GNMT:
   return gnm_cls.from_remote(major_version, gnm_variant)
 
 
-class LazyGNMDict(Mapping[str, Mapping[str, _ModelT]]):
+class LazyGNMDict[ModelT](Mapping[str, Mapping[str, ModelT]]):
   """A `{version: {variant: model}}` mapping which loads models on demand.
 
   Loading every GNM model up front keeps several GiB of model data in memory
@@ -155,7 +153,7 @@ class LazyGNMDict(Mapping[str, Mapping[str, _ModelT]]):
 
   def __init__(
       self,
-      load_fn: Callable[[str, str], _ModelT],
+      load_fn: Callable[[str, str], ModelT],
       variants_by_version: Mapping[str, Iterable[str]],
       max_loaded: int = 1,
   ):
@@ -175,14 +173,14 @@ class LazyGNMDict(Mapping[str, Mapping[str, _ModelT]]):
         for version, variants in variants_by_version.items()
     }
     self._max_loaded = max_loaded
-    self._loaded: collections.OrderedDict[tuple[str, str], _ModelT] = (
+    self._loaded: collections.OrderedDict[tuple[str, str], ModelT] = (
         collections.OrderedDict()
     )
 
   def __contains__(self, version: object) -> bool:
     return version in self._variants_by_version
 
-  def __getitem__(self, version: str) -> Mapping[str, _ModelT]:
+  def __getitem__(self, version: str) -> Mapping[str, ModelT]:
     if version not in self._variants_by_version:
       raise KeyError(version)
     return _LazyGNMVersionView(self, version)
@@ -197,7 +195,7 @@ class LazyGNMDict(Mapping[str, Mapping[str, _ModelT]]):
     """Returns the variants available for `version`."""
     return self._variants_by_version[version]
 
-  def get_model(self, version: str, variant: str) -> _ModelT:
+  def get_model(self, version: str, variant: str) -> ModelT:
     """Returns the model for (version, variant), loading it if needed."""
     key = (version, variant)
     if variant not in self._variants_by_version.get(version, ()):
@@ -213,7 +211,7 @@ class LazyGNMDict(Mapping[str, Mapping[str, _ModelT]]):
     self._loaded[key] = model
     return model
 
-  def get_or_skip(self, version: str, variant: str) -> _ModelT:
+  def get_or_skip(self, version: str, variant: str) -> ModelT:
     """Returns the model for (version, variant), or skips the current test.
 
     Use this in tests parameterized over variants which aren't available in
@@ -236,17 +234,17 @@ class LazyGNMDict(Mapping[str, Mapping[str, _ModelT]]):
     self._loaded.clear()
 
 
-class _LazyGNMVersionView(Mapping[str, _ModelT]):
+class _LazyGNMVersionView[ModelT](Mapping[str, ModelT]):
   """The `{variant: model}` view of a `LazyGNMDict` for a single version."""
 
-  def __init__(self, gnms: LazyGNMDict[_ModelT], version: str):
+  def __init__(self, gnms: LazyGNMDict[ModelT], version: str):
     self._gnms = gnms
     self._version = version
 
   def __contains__(self, variant: object) -> bool:
     return variant in self._gnms.variants(self._version)
 
-  def __getitem__(self, variant: str) -> _ModelT:
+  def __getitem__(self, variant: str) -> ModelT:
     return self._gnms.get_model(self._version, variant)
 
   def __iter__(self) -> Iterator[str]:
