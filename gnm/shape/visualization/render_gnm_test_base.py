@@ -26,6 +26,7 @@ import cv2
 from etils import epath
 from gnm.shape import gnm_numpy
 from gnm.shape import gnm_test_utils
+from gnm.shape import gnm_udim
 from gnm.shape.data.versions import gnm_test_catalog
 from gnm.shape.visualization import render_common
 from gnm.shape.visualization import vertex_colors as vertex_colors_module
@@ -451,14 +452,18 @@ class RenderGNMTestBase(parameterized.TestCase):
         )
         write_images(self.outputs_dir, f'custom_texture_{version}', renders)
 
-  def test_per_part_texture(self):
-    """Tests we can render with a per-part texture."""
+  def test_per_tile_texture(self):
+    """Tests we can render with a per-UDIM-tile texture."""
     green = np.zeros((64, 64, 3), dtype=np.float32)
     green[..., 1] = 1.0
     red = np.zeros((64, 64, 3), dtype=np.float32)
     red[..., 0] = 1.0
 
-    texture = {'skin': red, 'left_eye': green, 'right_eye': green}
+    texture = {
+        gnm_udim.UdimTile.SKIN: red,
+        gnm_udim.UdimTile.LEFT_EYE_INTERIOR: green,
+        gnm_udim.UdimTile.RIGHT_EYE_INTERIOR: green,
+    }
 
     for version, gnm_np in self._get_target_gnm_versions():
       with self.subTest(version=version):
@@ -492,17 +497,37 @@ class RenderGNMTestBase(parameterized.TestCase):
         self.assertEqual(np.min(renders[~eye_mask][..., 1]), 0.0)
 
         cv2.rectangle(renders, (xmin, ymin), (xmax, ymax), (1.0, 1.0, 1.0), 1)
-        write_images(self.outputs_dir, f'per_part_texture_{version}', renders)
+        write_images(self.outputs_dir, f'per_tile_texture_{version}', renders)
 
-  def test_incorrect_texture_part_name_raises_error(self):
-    """Tests error if texture part name is not a GNM part name."""
+  def test_eye_exterior_tile_texture(self):
+    """Tests the eye exteriors sample their own tiles, not the interiors'."""
+    green = np.zeros((64, 64, 3), dtype=np.float32)
+    green[..., 1] = 1.0
     texture = {
-        'wrong_part': np.zeros((self.height, self.width, 3), dtype=np.float32)
+        gnm_udim.UdimTile.LEFT_EYE_EXTERIOR: green,
+        gnm_udim.UdimTile.RIGHT_EYE_EXTERIOR: green,
     }
     for version, gnm_np in self._get_target_gnm_versions():
       with self.subTest(version=version):
+        renders = self.render_fn(
+            gnm_np=gnm_np,
+            image_size=self.image_size,
+            triangles='eyes',
+            texture=texture,
+            include_shading=False,
+            vertex_colors=np.ones_like(gnm_np.template_vertex_positions),
+            background_color=0.0,
+        )
+        # Exteriors occlude the (untextured, white) interiors -> green shows.
+        self.assertEqual(np.max(renders[..., 1] - renders[..., 0]), 1.0)
+
+  def test_incorrect_texture_tile_raises_error(self):
+    """Tests error if a texture key is not a UDIM tile of the GNM."""
+    texture = {1099: np.zeros((self.height, self.width, 3), dtype=np.float32)}
+    for version, gnm_np in self._get_target_gnm_versions():
+      with self.subTest(version=version):
         with self.assertRaisesRegex(
-            ValueError, r"Texture keys \{'wrong_part'\} are not GNM part names"
+            ValueError, r'Texture keys \{1099\} are not UDIM tiles'
         ):
           self.render_fn(
               gnm_np=gnm_np,
