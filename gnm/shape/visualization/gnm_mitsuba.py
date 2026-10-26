@@ -154,68 +154,67 @@ def create_mitsuba_mesh(
   if not mi.variant():
     mi.set_variant('cuda_ad_rgb', 'llvm_ad_rgb')
 
-  if MITSUBA_USE_LEGACY_MESH_API:
-    return _create_mitsuba_mesh_legacy(
-        vertices=vertices,
-        faces=faces,
-        texture_coordinates=texture_coordinates,
-        vertex_normals=vertex_normals,
-        properties=properties,
-        flip_texture_coordinates=flip_texture_coordinates,
-        vertex_colors=vertex_colors,
-    )
-
-  if properties is None:
-    properties = mi.Properties()
-
-  if texture_coordinates is not None:
-    if texture_coordinates.dtype != np.float32:
-      raise ValueError(
-          'Texture coordinates must be of type float32, got'
-          f' {texture_coordinates.dtype}'
+  with dr.suspend_grad():
+    if MITSUBA_USE_LEGACY_MESH_API:
+      return _create_mitsuba_mesh_legacy(
+          vertices=vertices,
+          faces=faces,
+          texture_coordinates=texture_coordinates,
+          vertex_normals=vertex_normals,
+          properties=properties,
+          flip_texture_coordinates=flip_texture_coordinates,
+          vertex_colors=vertex_colors,
       )
 
-    if (
-        flip_texture_coordinates
-        and texture_coordinates.ndim == 2
-        and texture_coordinates.shape[1] == 2
-    ):
-      texture_coordinates = np.array(texture_coordinates)
-      texture_coordinates[:, 1] = 1 - texture_coordinates[:, 1]
+    if properties is None:
+      properties = mi.Properties()
 
-  normals = mi.TensorXf32()
-  if vertex_normals is not None and not properties.get('face_normals', False):
-    normals = mi.TensorXf32(vertex_normals.astype(np.float32))
+    if texture_coordinates is not None:
+      if texture_coordinates.dtype != np.float32:
+        raise ValueError(
+            'Texture coordinates must be of type float32, got'
+            f' {texture_coordinates.dtype}'
+        )
 
-  texcoords = (
-      mi.TensorXf32(texture_coordinates.astype(np.float32))
-      if texture_coordinates is not None
-      else mi.TensorXf32()
-  )
+      if (
+          flip_texture_coordinates
+          and texture_coordinates.ndim == 2
+          and texture_coordinates.shape[1] == 2
+      ):
+        texture_coordinates = np.array(texture_coordinates)
+        texture_coordinates[:, 1] = 1 - texture_coordinates[:, 1]
 
-  mi_mesh = mi.Mesh(properties)
-  mi_mesh.from_fields(
-      faces=mi.TensorXu32(
-          faces.astype(np.uint32)
-      ),
-      positions=mi.TensorXf32(vertices.astype(np.float32)),
-      normals=normals,
-      texcoords=texcoords,
-  )
+    normals = mi.TensorXf32()
+    if vertex_normals is not None and not properties.get('face_normals', False):
+      normals = mi.TensorXf32(vertex_normals.astype(np.float32))
 
-  if vertex_colors is not None:
-    if vertex_colors.ndim == 2 and vertex_colors.shape[1] == 4:
-      vertex_colors = vertex_colors[:, :3]
-    if vertex_colors.dtype != np.float32:
-      raise ValueError(
-          f'Vertex colors must be of type float32, got {vertex_colors.dtype}'
-      )
-    mi_mesh.add_attribute(
-        'vertex_colors',
-        vertex_colors.astype(np.float32),
+    texcoords = (
+        mi.TensorXf32(texture_coordinates.astype(np.float32))
+        if texture_coordinates is not None
+        else mi.TensorXf32()
     )
 
-  return mi_mesh
+    mi_mesh = mi.Mesh(properties)
+    mi_mesh.from_fields(
+        faces=mi.TensorXu32(faces.astype(np.uint32)),
+        positions=mi.TensorXf32(vertices.astype(np.float32)),
+        normals=normals,
+        texcoords=texcoords,
+    )
+
+    if vertex_colors is not None:
+      if vertex_colors.ndim == 2 and vertex_colors.shape[1] == 4:
+        vertex_colors = vertex_colors[:, :3]
+      if vertex_colors.dtype != np.float32:
+        raise ValueError(
+            f'Vertex colors must be of type float32, got {vertex_colors.dtype}'
+        )
+      mi_mesh.add_attribute(
+          'vertex_colors',
+          vertex_colors.astype(np.float32),
+      )
+
+    return mi_mesh
 
 
 def _compute_camera_to_world_and_fov(
@@ -757,92 +756,95 @@ def render(
       max_texture_dimension=max(render_width, render_height),
   )
 
-  sensor = _create_mitsuba_sensor(
-      world_to_camera_cv=world_to_camera[0],
-      camera_to_image_cv=camera_to_image[0],
-      width=width,
-      height=height,
-      render_width=render_width,
-      render_height=render_height,
-  )
-  sensor_parameters = mi.traverse(sensor)
+  with dr.suspend_grad():
+    sensor = _create_mitsuba_sensor(
+        world_to_camera_cv=world_to_camera[0],
+        camera_to_image_cv=camera_to_image[0],
+        width=width,
+        height=height,
+        render_width=render_width,
+        render_height=render_height,
+    )
+    sensor_parameters = mi.traverse(sensor)
 
-  scene = _create_mitsuba_scene(
-      vertices_frame=vertices[0],
-      tile_corners=tile_corners,
-      tile_uvs=tile_uvs,
-      tiles=tiles,
-      vertex_normals_frame=_index_optional(vertex_normals, 0),
-      vertex_colors_frame=_index_optional(vertex_colors, 0),
-      prepared_textures=prepared_textures,
-      world_to_camera_cv=world_to_camera[0],
-      include_shading=include_shading,
-  )
-  scene_parameters = mi.traverse(scene)
+    scene = _create_mitsuba_scene(
+        vertices_frame=vertices[0],
+        tile_corners=tile_corners,
+        tile_uvs=tile_uvs,
+        tiles=tiles,
+        vertex_normals_frame=_index_optional(vertex_normals, 0),
+        vertex_colors_frame=_index_optional(vertex_colors, 0),
+        prepared_textures=prepared_textures,
+        world_to_camera_cv=world_to_camera[0],
+        include_shading=include_shading,
+    )
+    scene_parameters = mi.traverse(scene)
 
-  composited_frames = []
-  tqdm_kwargs = dict(
-      disable=not verbose, desc='Rendering (Mitsuba)', leave=False
-  )
-
-  for frame in tqdm.trange(num_frames, **tqdm_kwargs):
-    if frame > 0:
-      if not (
-          np.array_equal(world_to_camera[frame], world_to_camera[frame - 1])
-          and np.array_equal(camera_to_image[frame], camera_to_image[frame - 1])
-      ):
-        _update_mitsuba_sensor(
-            sensor_parameters=sensor_parameters,
-            world_to_camera_cv=world_to_camera[frame],
-            camera_to_image_cv=camera_to_image[frame],
-            width=width,
-            height=height,
-        )
-      _update_mitsuba_scene(
-          scene_parameters=scene_parameters,
-          vertices=vertices,
-          vertex_normals=vertex_normals,
-          vertex_colors=vertex_colors,
-          tile_corners=tile_corners,
-          tiles=tiles,
-          prepared_textures=prepared_textures,
-          world_to_camera=world_to_camera,
-          frame=frame,
-      )
-
-    image_film = mi.render(scene, sensor=sensor, spp=4)
-
-    # The background is a per-frame, per-pixel image, so it cannot be expressed
-    # as a Mitsuba emitter/envmap; compositing here also keeps the alpha
-    # blending as close as 1-to-1 with the render_gnm rasterization
-    # pipelines.
-    foreground_rgb = dr.clip(image_film[..., :3], 0.0, 1.0)
-    alpha_coverage = image_film[..., 3:4]
-    alpha_mask = alpha * dr.select(alpha_coverage > 0.0, 1.0, 0.0)
-
-    if background_color is not None:
-      background_rgb = mi.TensorXf(background_color[frame])
-      if multisample_antialiasing > 1:
-        background_rgb = dr.resample(
-            background_rgb,
-            shape=(render_height, render_width, 3),
-            filter='box',
-        )
-    else:
-      background_rgb = dr.zeros(mi.TensorXf, foreground_rgb.shape)
-
-    composited_rgb = foreground_rgb * alpha_mask + background_rgb * (
-        1.0 - alpha_mask
+    composited_frames = []
+    tqdm_kwargs = dict(
+        disable=not verbose, desc='Rendering (Mitsuba)', leave=False
     )
 
-    if multisample_antialiasing > 1:
-      composited_rgb = dr.resample(
-          composited_rgb, shape=(height, width, 3), filter='box'
+    for frame in tqdm.trange(num_frames, **tqdm_kwargs):
+      if frame > 0:
+        if not (
+            np.array_equal(world_to_camera[frame], world_to_camera[frame - 1])
+            and np.array_equal(
+                camera_to_image[frame], camera_to_image[frame - 1]
+            )
+        ):
+          _update_mitsuba_sensor(
+              sensor_parameters=sensor_parameters,
+              world_to_camera_cv=world_to_camera[frame],
+              camera_to_image_cv=camera_to_image[frame],
+              width=width,
+              height=height,
+          )
+        _update_mitsuba_scene(
+            scene_parameters=scene_parameters,
+            vertices=vertices,
+            vertex_normals=vertex_normals,
+            vertex_colors=vertex_colors,
+            tile_corners=tile_corners,
+            tiles=tiles,
+            prepared_textures=prepared_textures,
+            world_to_camera=world_to_camera,
+            frame=frame,
+        )
+
+      image_film = mi.render(scene, sensor=sensor, spp=4)
+
+      # The background is a per-frame, per-pixel image, so it cannot be
+      # expressed as a Mitsuba emitter/envmap; compositing here also keeps the
+      # alpha blending as close as 1-to-1 with the render_gnm rasterization
+      # pipelines.
+      foreground_rgb = dr.clip(image_film[..., :3], 0.0, 1.0)
+      alpha_coverage = image_film[..., 3:4]
+      alpha_mask = alpha * dr.select(alpha_coverage > 0.0, 1.0, 0.0)
+
+      if background_color is not None:
+        background_rgb = mi.TensorXf(background_color[frame])
+        if multisample_antialiasing > 1:
+          background_rgb = dr.resample(
+              background_rgb,
+              shape=(render_height, render_width, 3),
+              filter='box',
+          )
+      else:
+        background_rgb = dr.zeros(mi.TensorXf, foreground_rgb.shape)
+
+      composited_rgb = foreground_rgb * alpha_mask + background_rgb * (
+          1.0 - alpha_mask
       )
 
-    composited_frames.append(np.array(composited_rgb))
-    del image_film, composited_rgb
+      if multisample_antialiasing > 1:
+        composited_rgb = dr.resample(
+            composited_rgb, shape=(height, width, 3), filter='box'
+        )
 
-  del scene, scene_parameters, sensor, sensor_parameters
-  dr.flush_malloc_cache()
+      composited_frames.append(np.array(composited_rgb))
+      del image_film, composited_rgb
+
+    del scene, scene_parameters, sensor, sensor_parameters
+    dr.flush_malloc_cache()
   return np.array(composited_frames, dtype=np.float32)

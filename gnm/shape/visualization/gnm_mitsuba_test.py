@@ -18,6 +18,7 @@ from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import drjit as dr
 from gnm.shape import gnm_numpy
 from gnm.shape import gnm_test_utils
 from gnm.shape import gnm_udim
@@ -320,6 +321,34 @@ class GNMMitsubaTest(parameterized.TestCase):
           vertex_colors=np.ones_like(vertices),
           image_size=(240, 320),
       )
+
+  def test_render_suspends_gradients(self):
+    """Tests that mesh creation and rendering suspend gradient tracking."""
+    gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
+    vertices = gnm_np.template_vertex_positions[None, None, ...]
+    tracked_value = mi.Float(1.0)
+    dr.enable_grad(tracked_value)
+    with dr.resume_grad():
+      mesh = gnm_mitsuba.create_mitsuba_mesh(
+          vertices=gnm_np.template_vertex_positions.astype(np.float32),
+          faces=gnm_np.triangles.astype(np.int32),
+      )
+      mesh_parameters = mi.traverse(mesh)
+      for _, parameter in mesh_parameters.items():
+        self.assertFalse(dr.grad_enabled(parameter))
+
+      color = gnm_mitsuba.render(
+          vertices=vertices,
+          triangles=gnm_np.triangles,
+          world_to_camera=self.broadcast(self.world_to_camera, 1),
+          camera_to_image=self.broadcast(self.camera_to_image, 1),
+          vertex_normals=gnm_np.compute_vertex_normals(vertices),
+          triangle_uvs=gnm_np.triangle_uvs_udim,
+          vertex_colors=np.ones_like(vertices),
+          image_size=(60, 80),
+      )
+      self.assertEqual(color.shape, (1, 80, 60, 3))
+      self.assertTrue(dr.grad_enabled(tracked_value))
 
 
 if __name__ == '__main__':
