@@ -63,6 +63,20 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
     )
     self.include_shading = bool(props.get('include_shading', True))
 
+  def traverse(self, callback: mi.TraversalCallback) -> None:
+    """Exposes traversable integrator parameters.
+
+    Args:
+      callback: Mitsuba traversal callback.
+    """
+    super().traverse(callback)
+    callback.put('light_dir', self.light_dir, mi.ParamFlags.NonDifferentiable)
+    callback.put(
+        'light_intensity',
+        self.light_intensity,
+        mi.ParamFlags.NonDifferentiable,
+    )
+
   def sample(
       self,
       scene: mi.Scene,
@@ -160,7 +174,7 @@ class GnmHalfLambertIntegrator(mi.SamplingIntegrator):
     # Transform the (world-space) light direction into the local shading frame;
     # the view direction is already available there as `wi` (== -ray.d).
     light_direction_local = scene_intersection.to_local(
-        mi.Vector3f(self.light_dir)
+        dr.opaque(mi.Vector3f(self.light_dir))
     )
     view_direction_local = scene_intersection.wi
     half_vector_local = dr.normalize(
