@@ -195,6 +195,95 @@ class GNMMitsubaTest(parameterized.TestCase):
     )
     self.assertEqual(color.shape, (1, 320, 240, 3))
 
+  def test_render_multi_frame_updates_in_place(self):
+    """Tests that multi-frame rendering matches single-frame renders."""
+    gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
+    base_vertices = gnm_np.template_vertex_positions
+    num_frames = 3
+    vertices = np.stack(
+        [
+            base_vertices[None, ...]
+            + np.array(
+                [0.02 * frame, -0.01 * frame, 0.0],
+                dtype=np.float32,
+            )
+            for frame in range(num_frames)
+        ],
+        axis=0,
+    )
+    vertex_normals = gnm_np.compute_vertex_normals(vertices)
+
+    world_to_camera = np.stack(
+        [self.world_to_camera.copy() for _ in range(num_frames)],
+        axis=0,
+    )
+    # Apply a small camera rotation on frame 1 and translation on frame 2.
+    angle = 0.1
+    cos_angle, sin_angle = float(np.cos(angle)), float(np.sin(angle))
+    rotation_y = np.array(
+        [
+            [cos_angle, 0.0, sin_angle],
+            [0.0, 1.0, 0.0],
+            [-sin_angle, 0.0, cos_angle],
+        ],
+        dtype=np.float32,
+    )
+    world_to_camera[1, :3, :3] = rotation_y @ world_to_camera[1, :3, :3]
+    world_to_camera[2, 0, 3] = 0.05
+
+    camera_to_image = np.stack(
+        [self.camera_to_image.copy() for _ in range(num_frames)],
+        axis=0,
+    )
+    camera_to_image[2, 0, 0] = 520.0
+    camera_to_image[2, 1, 1] = 520.0
+
+    vertex_colors = np.ones_like(vertices, dtype=np.float32)
+    vertex_colors[1] *= np.array([0.9, 0.8, 1.0], dtype=np.float32)
+    vertex_colors[2] *= np.array([0.8, 1.0, 0.9], dtype=np.float32)
+
+    skin_texture_first = np.full((8, 8, 3), 0.8, dtype=np.float32)
+    skin_texture_last = np.full((8, 8, 3), 0.5, dtype=np.float32)
+    texture: dict[int, np.ndarray] = {
+        # Frame 0 and Frame 1 share the same texture; Frame 2 changes texture.
+        gnm_udim.UdimTile.SKIN: np.stack(
+            [skin_texture_first, skin_texture_first, skin_texture_last], axis=0
+        ),
+    }
+
+    batch_color = gnm_mitsuba.render(
+        vertices=vertices,
+        triangles=gnm_np.triangles,
+        world_to_camera=world_to_camera,
+        camera_to_image=camera_to_image,
+        vertex_normals=vertex_normals,
+        triangle_uvs=gnm_np.triangle_uvs_udim,
+        vertex_colors=vertex_colors,
+        image_size=(60, 80),
+        texture=texture,
+    )
+    self.assertEqual(batch_color.shape, (num_frames, 80, 60, 3))
+
+    for frame in range(num_frames):
+      single_color = gnm_mitsuba.render(
+          vertices=vertices[frame : frame + 1],
+          triangles=gnm_np.triangles,
+          world_to_camera=world_to_camera[frame : frame + 1],
+          camera_to_image=camera_to_image[frame : frame + 1],
+          vertex_normals=vertex_normals[frame : frame + 1],
+          triangle_uvs=gnm_np.triangle_uvs_udim,
+          vertex_colors=vertex_colors[frame : frame + 1],
+          image_size=(60, 80),
+          texture={
+              gnm_udim.UdimTile.SKIN: (
+                  texture[gnm_udim.UdimTile.SKIN][frame : frame + 1]
+              )
+          },
+      )
+      np.testing.assert_allclose(
+          batch_color[frame], single_color[0], rtol=1e-5, atol=1e-5
+      )
+
   def test_non_square_pixels_raises_error(self):
     """Tests that non-square pixels raise an error."""
     gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
