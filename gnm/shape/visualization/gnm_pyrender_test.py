@@ -22,10 +22,12 @@ from absl.testing import parameterized
 from etils import epath
 from gnm.shape import gnm_numpy
 from gnm.shape import gnm_test_utils
+from gnm.shape import gnm_udim
 from gnm.shape.data.versions import gnm_test_catalog
 from gnm.shape.visualization import gnm_pyrender
 import mediapy as media
 import numpy as np
+import numpy.typing as npt
 
 _MAINTAINED_MAJOR_GNM_VERSIONS = gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS
 
@@ -83,6 +85,37 @@ class GNMPyrenderTest(parameterized.TestCase):
     self.assertEqual(color.shape, (num_frames, 320, 240, 3))
     if num_frames == 1:
       media.write_image(_OUTPUTS_DIR / 'render_basic.png', color[0])
+
+  def test_render_clips_out_of_range_float_texture(self):
+    gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
+    vertices = gnm_np.template_vertex_positions[np.newaxis, np.newaxis]
+    clipped_texture: dict[int, npt.NDArray[np.float32]] = {
+        gnm_udim.UdimTile.SKIN: np.ones((1, 4, 4, 3), dtype=np.float32)
+    }
+    over_one_texture: dict[int, npt.NDArray[np.float32]] = {
+        gnm_udim.UdimTile.SKIN: np.full((1, 4, 4, 3), 1.5, dtype=np.float32)
+    }
+    expected_color = gnm_pyrender.render(
+        vertices=vertices,
+        triangles=gnm_np.triangles,
+        world_to_camera=self.world_to_camera[np.newaxis],
+        camera_to_image=self.camera_to_image[np.newaxis],
+        vertex_normals=gnm_np.compute_vertex_normals(vertices),
+        triangle_uvs=gnm_np.triangle_uvs_udim,
+        vertex_colors=np.ones_like(vertices),
+        texture=clipped_texture,
+    )
+    actual_color = gnm_pyrender.render(
+        vertices=vertices,
+        triangles=gnm_np.triangles,
+        world_to_camera=self.world_to_camera[np.newaxis],
+        camera_to_image=self.camera_to_image[np.newaxis],
+        vertex_normals=gnm_np.compute_vertex_normals(vertices),
+        triangle_uvs=gnm_np.triangle_uvs_udim,
+        vertex_colors=np.ones_like(vertices),
+        texture=over_one_texture,
+    )
+    np.testing.assert_allclose(actual_color, expected_color)
 
 
 class ProjectionMatrixCameraTest(parameterized.TestCase):

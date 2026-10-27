@@ -153,7 +153,10 @@ def render(
   scene = pyrender.Scene(bg_color=_BLACK)
 
   def _create_texture(frame: int, tile: int) -> pyrender.Texture:
-    return pyrender.Texture(source=texture[tile][frame], source_channels='RGB')
+    texture_frame = texture[tile][frame]
+    if np.issubdtype(texture_frame.dtype, np.floating):
+      texture_frame = np.clip(texture_frame, 0.0, 1.0)
+    return pyrender.Texture(source=texture_frame, source_channels='RGB')
 
   def _create_mesh(frame: int, gnm_index: int) -> pyrender.Mesh:
     """Set-up GNM mesh and texture, with one primitive per UDIM tile."""

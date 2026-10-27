@@ -332,7 +332,7 @@ def _prepare_tile_textures(
         continue
 
       texture_float = tile_textures[frame].astype(np.float32, copy=False)
-      if tile_textures.dtype == np.uint8 or texture_float.max() > 1.0:
+      if tile_textures.dtype == np.uint8:
         texture_float = texture_float / 255.0
       texture_float = np.clip(texture_float, 0.0, 1.0)
       texture_height, texture_width = texture_float.shape[:2]

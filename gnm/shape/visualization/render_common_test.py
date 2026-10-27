@@ -309,6 +309,13 @@ class TestLoadTexture(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, "'wrong_part' is not a GNM part"):
       render_common.load_texture(gnm_np, {'wrong_part': eye_tex})
 
+  def test_load_texture_clips_out_of_range_float(self):
+    """Tests that float textures outside [0, 1] are clipped."""
+    gnm_np = self.gnms[gnm_test_catalog.MAINTAINED_MAJOR_VERSIONS[0]]
+    over_one_tex = np.full((8, 8, 3), 1.5, dtype=np.float32)
+    textures = render_common.load_texture(gnm_np, texture=over_one_tex)
+    np.testing.assert_array_equal(textures[render_common.SKIN_UDIM_TILE], 255)
+
 
 class TestProjectPointsForGnm(parameterized.TestCase):
   """Tests for project_points_for_gnm."""

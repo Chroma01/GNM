@@ -350,6 +350,38 @@ class GNMMitsubaTest(parameterized.TestCase):
       self.assertEqual(color.shape, (1, 80, 60, 3))
       self.assertTrue(dr.grad_enabled(tracked_value))
 
+  def test_prepare_tile_textures_scales_uint8(self):
+    """Tests that uint8 textures are normalized from [0, 255] to [0.0, 1.0]."""
+    uint8_texture = np.full((1, 4, 4, 3), 51, dtype=np.uint8)
+    tile = gnm_udim.UdimTile.SKIN
+
+    prepared = gnm_mitsuba._prepare_tile_textures(  # pylint: disable=protected-access
+        texture={tile: uint8_texture},
+        tiles=[tile],
+        num_frames=1,
+        max_texture_dimension=16,
+    )
+    np.testing.assert_allclose(prepared[tile][0], 0.2)
+
+  def test_prepare_tile_textures_clips_float_to_unit_range(self):
+    """Tests that float textures outside [0.0, 1.0] are clipped."""
+    float_texture = np.broadcast_to(
+        np.array([-0.5, 0.5, 1.5], dtype=np.float32),
+        (1, 2, 2, 3),
+    )
+    tile = gnm_udim.UdimTile.SKIN
+
+    prepared = gnm_mitsuba._prepare_tile_textures(  # pylint: disable=protected-access
+        texture={tile: float_texture},
+        tiles=[tile],
+        num_frames=1,
+        max_texture_dimension=16,
+    )
+    np.testing.assert_allclose(
+        prepared[tile][0],
+        np.broadcast_to(np.array([0.0, 0.5, 1.0], dtype=np.float32), (2, 2, 3)),
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

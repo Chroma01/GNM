@@ -869,7 +869,9 @@ def load_texture(
 
   def _to_3channel_uint8(texture_image: np.ndarray) -> npt.NDArray[np.uint8]:
     if texture_image.dtype != np.uint8:
-      texture_image = (texture_image * 255.0).astype(np.uint8)
+      texture_image = (np.clip(texture_image, 0.0, 1.0) * 255.0).astype(
+          np.uint8
+      )
     if texture_image.shape[-1] == 1:
       texture_image = np.repeat(texture_image, 3, axis=-1)
     return texture_image
