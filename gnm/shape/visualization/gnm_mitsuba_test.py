@@ -14,8 +14,6 @@
 
 """Tests for GNM Mitsuba visualization."""
 
-from typing import Any
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import drjit as dr
@@ -66,11 +64,6 @@ class GNMMitsubaTest(parameterized.TestCase):
         dtype=np.float32,
     )
 
-  def broadcast(
-      self, array: npt.NDArray[Any], num_frames: int = 1
-  ) -> npt.NDArray[Any]:
-    return np.broadcast_to(array, (num_frames, *array.shape))
-
   @parameterized.product(
       version=_MAINTAINED_MAJOR_GNM_VERSIONS,
       num_frames=(1, 3),
@@ -78,14 +71,20 @@ class GNMMitsubaTest(parameterized.TestCase):
   def test_render_basic(self, version: str, num_frames: int):
     """Tests basic rendering with Mitsuba."""
     gnm_np = self.gnms[version]
-    vertices = gnm_np.template_vertex_positions[None, :, :]
-    vertices = self.broadcast(vertices, num_frames)
+    vertices = np.broadcast_to(
+        gnm_np.template_vertex_positions,
+        (num_frames, 1, *gnm_np.template_vertex_positions.shape),
+    )
 
     color = gnm_mitsuba.render(
         vertices=vertices,
         triangles=gnm_np.triangles,
-        world_to_camera=self.broadcast(self.world_to_camera, num_frames),
-        camera_to_image=self.broadcast(self.camera_to_image, num_frames),
+        world_to_camera=np.broadcast_to(
+            self.world_to_camera, (num_frames, 4, 4)
+        ),
+        camera_to_image=np.broadcast_to(
+            self.camera_to_image, (num_frames, 4, 4)
+        ),
         vertex_normals=gnm_np.compute_vertex_normals(vertices),
         triangle_uvs=gnm_np.triangle_uvs_udim,
         vertex_colors=np.ones_like(vertices),
@@ -178,16 +177,16 @@ class GNMMitsubaTest(parameterized.TestCase):
   def test_render_partial_texture_dict(self):
     """Tests that missing tiles in texture dict fall back to default texture."""
     gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
-    vertices = gnm_np.template_vertex_positions[None, None, ...]
+    vertices = gnm_np.template_vertex_positions[np.newaxis, np.newaxis]
     # Only provide a texture for the skin tile, omitting the other tiles.
-    partial_texture: dict[int, np.ndarray] = {
+    partial_texture: dict[int, npt.NDArray[np.float32]] = {
         gnm_udim.UdimTile.SKIN: np.ones((1, 16, 16, 3), np.float32),
     }
     color = gnm_mitsuba.render(
         vertices=vertices,
         triangles=gnm_np.triangles,
-        world_to_camera=self.broadcast(self.world_to_camera, 1),
-        camera_to_image=self.broadcast(self.camera_to_image, 1),
+        world_to_camera=self.world_to_camera[np.newaxis],
+        camera_to_image=self.camera_to_image[np.newaxis],
         vertex_normals=gnm_np.compute_vertex_normals(vertices),
         triangle_uvs=gnm_np.triangle_uvs_udim,
         vertex_colors=np.ones_like(vertices),
@@ -203,7 +202,7 @@ class GNMMitsubaTest(parameterized.TestCase):
     num_frames = 3
     vertices = np.stack(
         [
-            base_vertices[None, ...]
+            base_vertices[np.newaxis]
             + np.array(
                 [0.02 * frame, -0.01 * frame, 0.0],
                 dtype=np.float32,
@@ -245,7 +244,7 @@ class GNMMitsubaTest(parameterized.TestCase):
 
     skin_texture_first = np.full((8, 8, 3), 0.8, dtype=np.float32)
     skin_texture_last = np.full((8, 8, 3), 0.5, dtype=np.float32)
-    texture: dict[int, np.ndarray] = {
+    texture: dict[int, npt.NDArray[np.float32]] = {
         # Frame 0 and Frame 1 share the same texture; Frame 2 changes texture.
         gnm_udim.UdimTile.SKIN: np.stack(
             [skin_texture_first, skin_texture_first, skin_texture_last], axis=0
@@ -288,7 +287,7 @@ class GNMMitsubaTest(parameterized.TestCase):
   def test_non_square_pixels_raises_error(self):
     """Tests that non-square pixels raise an error."""
     gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
-    vertices = gnm_np.template_vertex_positions[None, None, ...]
+    vertices = gnm_np.template_vertex_positions[np.newaxis, np.newaxis]
     non_square_c2i = self.camera_to_image.copy()
     non_square_c2i[0, 0] = 500.0
     non_square_c2i[1, 1] = 600.0
@@ -296,8 +295,8 @@ class GNMMitsubaTest(parameterized.TestCase):
       gnm_mitsuba.render(
           vertices=vertices,
           triangles=gnm_np.triangles,
-          world_to_camera=self.broadcast(self.world_to_camera, 1),
-          camera_to_image=self.broadcast(non_square_c2i, 1),
+          world_to_camera=self.world_to_camera[np.newaxis],
+          camera_to_image=non_square_c2i[np.newaxis],
           vertex_normals=gnm_np.compute_vertex_normals(vertices),
           triangle_uvs=gnm_np.triangle_uvs_udim,
           vertex_colors=np.ones_like(vertices),
@@ -307,15 +306,15 @@ class GNMMitsubaTest(parameterized.TestCase):
   def test_skew_raises_error(self):
     """Tests that skew raises an error."""
     gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
-    vertices = gnm_np.template_vertex_positions[None, None, ...]
+    vertices = gnm_np.template_vertex_positions[np.newaxis, np.newaxis]
     skew_c2i = self.camera_to_image.copy()
     skew_c2i[0, 1] = 10.0
     with self.assertRaisesRegex(NotImplementedError, 'zero skew'):
       gnm_mitsuba.render(
           vertices=vertices,
           triangles=gnm_np.triangles,
-          world_to_camera=self.broadcast(self.world_to_camera, 1),
-          camera_to_image=self.broadcast(skew_c2i, 1),
+          world_to_camera=self.world_to_camera[np.newaxis],
+          camera_to_image=skew_c2i[np.newaxis],
           vertex_normals=gnm_np.compute_vertex_normals(vertices),
           triangle_uvs=gnm_np.triangle_uvs_udim,
           vertex_colors=np.ones_like(vertices),
@@ -325,7 +324,7 @@ class GNMMitsubaTest(parameterized.TestCase):
   def test_render_suspends_gradients(self):
     """Tests that mesh creation and rendering suspend gradient tracking."""
     gnm_np = self.gnms[_MAINTAINED_MAJOR_GNM_VERSIONS[0]]
-    vertices = gnm_np.template_vertex_positions[None, None, ...]
+    vertices = gnm_np.template_vertex_positions[np.newaxis, np.newaxis]
     tracked_value = mi.Float(1.0)
     dr.enable_grad(tracked_value)
     with dr.resume_grad():
@@ -340,8 +339,8 @@ class GNMMitsubaTest(parameterized.TestCase):
       color = gnm_mitsuba.render(
           vertices=vertices,
           triangles=gnm_np.triangles,
-          world_to_camera=self.broadcast(self.world_to_camera, 1),
-          camera_to_image=self.broadcast(self.camera_to_image, 1),
+          world_to_camera=self.world_to_camera[np.newaxis],
+          camera_to_image=self.camera_to_image[np.newaxis],
           vertex_normals=gnm_np.compute_vertex_normals(vertices),
           triangle_uvs=gnm_np.triangle_uvs_udim,
           vertex_colors=np.ones_like(vertices),

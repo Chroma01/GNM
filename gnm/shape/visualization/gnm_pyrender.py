@@ -18,14 +18,16 @@ This is the rendering backend of `render_gnm`, which prepares and batches its
 arguments; call `render_gnm.render_gnm` rather than `render` directly.
 """
 
-import collections.abc
+from collections.abc import Callable, Mapping
 import functools
 import os
 import tempfile
 from typing import Any
+
 import cv2
 from gnm.shape.visualization import udim
 import numpy as np
+import numpy.typing as npt
 import tqdm
 
 if 'PYOPENGL_PLATFORM' not in os.environ:
@@ -46,21 +48,26 @@ DEFAULT_RENDERER_FACTORY = pyrender.OffscreenRenderer
 class ProjectionMatrixCamera(pyrender.Camera):
   """A camera defined by a full projection matrix."""
 
-  def __init__(self, projection_matrix: np.ndarray):
+  def __init__(self, projection_matrix: npt.NDArray[np.floating]):
+    """Initializes the camera with the given 4x4 projection matrix."""
     super().__init__()
     self._projection_matrix = projection_matrix
 
   def get_projection_matrix(
       self, width: int | None = None, height: int | None = None
-  ) -> np.ndarray:
+  ) -> npt.NDArray[np.floating]:
+    """Returns the 4x4 projection matrix."""
     del width, height
     return self._projection_matrix
 
-  def set_projection_matrix(self, projection_matrix: np.ndarray):
+  def set_projection_matrix(
+      self, projection_matrix: npt.NDArray[np.floating]
+  ) -> None:
+    """Updates the 4x4 projection matrix."""
     self._projection_matrix = projection_matrix
 
 
-def _changed_flag(array: np.ndarray) -> np.ndarray:
+def _changed_flag(array: npt.NDArray[np.generic]) -> npt.NDArray[np.bool_]:
   """Returns a flag indicating whether the array has changed between frames.
 
   Args:
@@ -70,7 +77,6 @@ def _changed_flag(array: np.ndarray) -> np.ndarray:
     A flag indicating whether the array has changed between frames, (N,). Always
     1 for the first frame.
   """
-
   if array.strides[0] == 0:
     # 'N' dimension is just a broadcast.
     arr = np.zeros(array.shape[0], dtype=np.bool_)
@@ -82,25 +88,27 @@ def _changed_flag(array: np.ndarray) -> np.ndarray:
 
 
 def render(
-    vertices: np.ndarray,
-    triangles: np.ndarray,
-    world_to_camera: np.ndarray,
-    camera_to_image: np.ndarray,
-    vertex_normals: np.ndarray,
-    triangle_uvs: np.ndarray,
-    vertex_colors: np.ndarray,
+    vertices: npt.NDArray[np.floating],
+    triangles: npt.NDArray[np.integer],
+    world_to_camera: npt.NDArray[np.floating],
+    camera_to_image: npt.NDArray[np.floating],
+    vertex_normals: npt.NDArray[np.floating],
+    triangle_uvs: npt.NDArray[np.floating],
+    vertex_colors: npt.NDArray[np.floating],
     image_size: tuple[int, int] = (240, 320),
-    texture: collections.abc.Mapping[int, np.ndarray] | None = None,
+    texture: (
+        Mapping[int, npt.NDArray[np.floating] | npt.NDArray[np.uint8]] | None
+    ) = None,
     multisample_antialiasing: int = 1,
-    background_color: np.ndarray | None = None,
+    background_color: npt.NDArray[np.floating] | None = None,
     alpha: float = 1.0,
     include_shading: bool = True,
     verbose: bool = False,
-    renderer_factory: collections.abc.Callable[
+    renderer_factory: Callable[
         [int, int], pyrender.OffscreenRenderer
     ] = DEFAULT_RENDERER_FACTORY,
-) -> np.ndarray:
-  """Render GNM meshes.
+) -> npt.NDArray[np.float32]:
+  """Renders GNM meshes.
 
   N frames, M meshes. See `render_common.BackendRenderFn`.
 
@@ -127,9 +135,8 @@ def render(
       pyrender.OffscreenRenderer.
 
   Returns:
-    The rendered color image, float32 [0-1] (H, W, 3).
+    The rendered color image, float32 [0-1] (N, H, W, 3).
   """
-
   num_frames, num_meshes = vertices.shape[:2]
 
   # Use multi-sample anti-aliasing (MSAA) to reduce jagged edges.
@@ -182,7 +189,7 @@ def render(
       mesh_node: pyrender.Node,
       texture: pyrender.Texture | None,
       tile_index: int,
-  ):
+  ) -> None:
     material = mesh_node.mesh.primitives[tile_index].material
     material.baseColorTexture = texture
 
@@ -220,7 +227,7 @@ def render(
 
   texture_objects = {}
   colors = []
-  tqdm_kwargs = dict(disable=not verbose, desc='Rendering', leave=False)
+  tqdm_kwargs = {'disable': not verbose, 'desc': 'Rendering', 'leave': False}
   for f in tqdm.trange(0, num_frames, **tqdm_kwargs):
     # Update anything that's changed.
     if vertices_changed[f] or vertex_colors_changed[f]:
@@ -267,8 +274,8 @@ def render(
     color = np.power(color, 2.2)
 
     # Alpha blending with background color.
-    color = color * alpha_im[..., None] + background * (
-        1.0 - alpha_im[..., None]
+    color = color * alpha_im[..., np.newaxis] + background * (
+        1.0 - alpha_im[..., np.newaxis]
     )
 
     # Downsample for anti-aliasing.
@@ -278,7 +285,7 @@ def render(
     colors.append(color)
 
   renderer.delete()
-  return np.array(colors)
+  return np.array(colors, dtype=np.float32)
 
 
 @functools.cache
@@ -311,6 +318,7 @@ class CustomShaderCache(pyrender.shader_program.ShaderProgramCache):
   def __init__(
       self, original_cache: pyrender.shader_program.ShaderProgramCache
   ):
+    """Initializes the cache wrapper around `original_cache`."""
     super().__init__()
     self.original_cache = original_cache
     self.shader_program = None
@@ -324,7 +332,7 @@ class CustomShaderCache(pyrender.shader_program.ShaderProgramCache):
       *args,
       **kwargs,
   ) -> pyrender.shader_program.ShaderProgram:
-
+    """Returns a shader program with a custom fragment shader."""
     # Remove sRGB correction from textures - our textures are in linear space.
     defines = defines or {}
     defines['SRGB_CORRECTED'] = 0
@@ -350,9 +358,8 @@ class CustomShaderCache(pyrender.shader_program.ShaderProgramCache):
     return program
 
 
-def _override_shader_cache(renderer: pyrender.OffscreenRenderer):
-  """Override the shader cache with a custom cache."""
-
+def _override_shader_cache(renderer: pyrender.OffscreenRenderer) -> None:
+  """Overrides the shader cache with a custom cache."""
   # pylint: disable=protected-access
   if r := renderer._renderer:
     cache = r._program_cache
@@ -360,7 +367,9 @@ def _override_shader_cache(renderer: pyrender.OffscreenRenderer):
   # pylint: enable=protected-access
 
 
-def _align_vectors(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+def _align_vectors(
+    a: npt.NDArray[np.floating], b: npt.NDArray[np.floating]
+) -> npt.NDArray[np.float32]:
   """Returns a 4x4 transform that rotates vector `a` to vector `b`."""
   a = np.asarray(a, dtype=np.float64)
   b = np.asarray(b, dtype=np.float64)

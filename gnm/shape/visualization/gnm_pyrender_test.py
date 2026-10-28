@@ -14,9 +14,8 @@
 
 """Tests for GNM pyrender visualization."""
 
-# pylint: disable=protected-access
-
 import tempfile
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from etils import epath
@@ -61,23 +60,26 @@ class GNMPyrenderTest(parameterized.TestCase):
     self.camera_to_image[1, 1] = 10
     self.camera_to_image[2:4, 2] = -1.0
 
-  def broadcast(self, array: np.ndarray, num_frames: int = 1) -> np.ndarray:
-    return np.broadcast_to(array, (num_frames, *array.shape))
-
   @parameterized.product(
       version=_MAINTAINED_MAJOR_GNM_VERSIONS,
       num_frames=(1, 5),
   )
   def test_render_basic(self, version: str, num_frames: int):
     gnm_np = self.gnms[version]
-    vertices = gnm_np.template_vertex_positions[None, :, :]
-    vertices = self.broadcast(vertices, num_frames)
+    vertices = np.broadcast_to(
+        gnm_np.template_vertex_positions,
+        (num_frames, 1, *gnm_np.template_vertex_positions.shape),
+    )
 
     color = gnm_pyrender.render(
         vertices=vertices,
         triangles=gnm_np.triangles,
-        world_to_camera=self.broadcast(self.world_to_camera, num_frames),
-        camera_to_image=self.broadcast(self.camera_to_image, num_frames),
+        world_to_camera=np.broadcast_to(
+            self.world_to_camera, (num_frames, 4, 4)
+        ),
+        camera_to_image=np.broadcast_to(
+            self.camera_to_image, (num_frames, 4, 4)
+        ),
         vertex_normals=gnm_np.compute_vertex_normals(vertices),
         triangle_uvs=gnm_np.triangle_uvs_udim,
         vertex_colors=np.ones_like(vertices),
@@ -121,14 +123,18 @@ class GNMPyrenderTest(parameterized.TestCase):
 class ProjectionMatrixCameraTest(parameterized.TestCase):
 
   @parameterized.parameters((np.eye(4),), (np.zeros((4, 4)),))
-  def test_projection_matrix_camera(self, projection_matrix: np.ndarray):
+  def test_projection_matrix_camera(
+      self, projection_matrix: npt.NDArray[np.floating]
+  ):
     camera = gnm_pyrender.ProjectionMatrixCamera(projection_matrix)
     np.testing.assert_array_equal(
         camera.get_projection_matrix(), projection_matrix
     )
 
   @parameterized.parameters((np.eye(4),), (np.zeros((4, 4)),))
-  def test_set_projection_matrix(self, projection_matrix: np.ndarray):
+  def test_set_projection_matrix(
+      self, projection_matrix: npt.NDArray[np.floating]
+  ):
     camera = gnm_pyrender.ProjectionMatrixCamera(np.ones((4, 4)))
     camera.set_projection_matrix(projection_matrix)
     np.testing.assert_array_equal(
@@ -152,7 +158,7 @@ class ChangedFlagTest(absltest.TestCase):
       array[index, 0, 0] = 1.0
 
     np.testing.assert_array_equal(
-        gnm_pyrender._changed_flag(array), expected_flags
+        gnm_pyrender._changed_flag(array), expected_flags  # pylint: disable=protected-access
     )
 
   def test_changed_flag_broadcast_unchanged(self):
@@ -165,7 +171,7 @@ class ChangedFlagTest(absltest.TestCase):
     expected_flags[0] = True
 
     np.testing.assert_array_equal(
-        gnm_pyrender._changed_flag(array), expected_flags
+        gnm_pyrender._changed_flag(array), expected_flags  # pylint: disable=protected-access
     )
 
 

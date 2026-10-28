@@ -349,7 +349,7 @@ def _prepare_tile_textures(
             interpolation=cv2.INTER_AREA,
         )
       if texture_float.ndim == 2:
-        texture_float = texture_float[..., None]
+        texture_float = texture_float[..., np.newaxis]
       elif texture_float.ndim == 3 and texture_float.shape[2] == 4:
         texture_float = texture_float[..., :3]
       texture_height, texture_width = texture_float.shape[:2]
@@ -424,9 +424,9 @@ def _create_mitsuba_sensor(
 
 
 def _index_optional(
-    array: npt.NDArray[Any] | None,
+    array: npt.NDArray[np.float32] | None,
     index: int | slice | npt.NDArray[np.int32] | tuple[int | slice, ...],
-) -> npt.NDArray[Any] | None:
+) -> npt.NDArray[np.float32] | None:
   """Returns `array[index]` when `array` is not `None`, otherwise `None`."""
   return array[index] if array is not None else None
 
@@ -685,7 +685,7 @@ def render(
     include_shading: bool = True,
     verbose: bool = False,
 ) -> npt.NDArray[np.float32]:
-  """Render GNM meshes using Mitsuba.
+  """Renders GNM meshes using Mitsuba.
 
   N frames, M meshes. See `render_common.BackendRenderFn`.
 
@@ -781,9 +781,11 @@ def render(
     scene_parameters = mi.traverse(scene)
 
     composited_frames = []
-    tqdm_kwargs = dict(
-        disable=not verbose, desc='Rendering (Mitsuba)', leave=False
-    )
+    tqdm_kwargs = {
+        'disable': not verbose,
+        'desc': 'Rendering (Mitsuba)',
+        'leave': False,
+    }
 
     for frame in tqdm.trange(num_frames, **tqdm_kwargs):
       if frame > 0:

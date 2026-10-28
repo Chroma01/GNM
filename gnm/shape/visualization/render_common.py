@@ -21,7 +21,7 @@ loading, camera/projection helpers and batching utilities.
 
 from collections.abc import Mapping, Sequence
 import functools
-from typing import Protocol
+from typing import Any, Protocol, overload
 import warnings
 
 from etils import epath
@@ -93,20 +93,22 @@ class BackendRenderFn(Protocol):
   def __call__(
       self,
       vertices: FloatArray,
-      triangles: np.ndarray,
+      triangles: npt.NDArray[np.integer],
       world_to_camera: FloatArray,
       camera_to_image: FloatArray,
       vertex_normals: FloatArray,
       triangle_uvs: FloatArray,
       vertex_colors: FloatArray,
       image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
-      texture: Mapping[int, np.ndarray] | None = None,
+      texture: (
+          Mapping[int, FloatArray | npt.NDArray[np.uint8]] | None
+      ) = None,
       multisample_antialiasing: int = 1,
       background_color: FloatArray | None = None,
       alpha: float = 1.0,
       include_shading: bool = True,
       verbose: bool = False,
-  ) -> np.ndarray:
+  ) -> FloatArray:
     ...
 
 
@@ -179,7 +181,7 @@ def render_gnm_mesh(
     vertices = gnm_np.template_vertex_positions
 
   if not multiple_gnms:
-    vertices = vertices[..., None, :, :]  # Inject 'M' dimension.
+    vertices = vertices[..., np.newaxis, :, :]  # Inject 'M' dimension.
   elif (vertices_dim := vertices.ndim) < 3:
     raise ValueError(
         f'Called with {multiple_gnms=}, but vertices is only {vertices_dim}D.'
@@ -201,7 +203,7 @@ def render_gnm_mesh(
   if not colors_has_m_dim:
     # 'M' dimension is not present but is required. Inject the dimension, and
     # expand to match the size of vertices' M dimension.
-    vertex_colors = vertex_colors[..., None, :, :]
+    vertex_colors = vertex_colors[..., np.newaxis, :, :]
     vertex_colors_shape = list(vertex_colors.shape)
     vertex_colors_shape[-3] = vertices.shape[-3]
     vertex_colors = np.broadcast_to(vertex_colors, vertex_colors_shape)
@@ -244,6 +246,8 @@ def render_gnm_mesh(
   # Convert background color to float [0-1].
   if background_color.dtype == np.uint8:
     background_color = background_color.astype(np.float32) / 255.0
+  else:
+    background_color = background_color.astype(np.float32, copy=False)
 
   texture_dict = load_texture(gnm_np, texture)
   textures = list(texture_dict.values())
@@ -267,8 +271,10 @@ def render_gnm_mesh(
         f' {[t.shape for t in textures]}.'
     ) from e
 
-  def batchify(arr, non_batch_dims):
-    """Broadcast to batch dimensions, and flatten the batch dimensions."""
+  def batchify[ScalarT: np.generic](
+      arr: npt.NDArray[ScalarT], non_batch_dims: int
+  ) -> npt.NDArray[ScalarT]:
+    """Broadcasts to batch dimensions, and flattens the batch dimensions."""
     arr = np.broadcast_to(arr, (*batch_dims, *arr.shape[-non_batch_dims:]))
     return arr.reshape(int(np.prod(batch_dims)), *arr.shape[-non_batch_dims:])
 
@@ -303,14 +309,14 @@ def render_gnm_mesh(
 
 def project_points_for_gnm(
     gnm_np: gnm_numpy.GNM,
-    points_world: np.ndarray | None = None,
-    vertices: np.ndarray | None = None,
+    points_world: FloatArray | None = None,
+    vertices: FloatArray | None = None,
     world_to_camera: FloatArray | None = None,
     camera_to_image: FloatArray | None = None,
     image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     multiple_gnms: bool = False,
-    **kwargs,
-) -> np.ndarray:
+    **kwargs: Any,
+) -> FloatArray:
   """Projects world points under the same conditions as a render_gnm call.
 
   Intended for identifying the per-frame positions of 3D points (e.g. GNM
@@ -336,7 +342,6 @@ def project_points_for_gnm(
   Returns:
     The projected points in image space, (..., P, 2).
   """
-
   del kwargs
 
   if points_world is None:
@@ -347,7 +352,7 @@ def project_points_for_gnm(
     vertices = gnm_np.template_vertex_positions
 
   if not multiple_gnms:
-    vertices = vertices[..., None, :, :]  # Inject 'M' dimension.
+    vertices = vertices[..., np.newaxis, :, :]  # Inject 'M' dimension.
   elif (vertices_dim := vertices.ndim) < 3:
     raise ValueError(
         f'Called with {multiple_gnms=}, but vertices is only {vertices_dim}D.'
@@ -396,8 +401,8 @@ def project_points_for_gnm(
         f' camera_to_image {camera_to_image.shape}.'
     ) from e
 
-  def batchify(arr, non_batch_dims):
-    """Broadcast to batch dimensions, and flatten the batch dimensions."""
+  def batchify(arr: FloatArray, non_batch_dims: int) -> FloatArray:
+    """Broadcasts to batch dimensions, and flattens the batch dimensions."""
     arr = np.broadcast_to(arr, (*batch_dims, *arr.shape[-non_batch_dims:]))
     return arr.reshape(int(np.prod(batch_dims)), *arr.shape[-non_batch_dims:])
 
@@ -413,7 +418,8 @@ def project_points_for_gnm(
   )
   points_homogeneous = np.concatenate([points_world, homogenous_ones], axis=-1)
   points_clip_space = (
-      view_projection_matrix[:, None, :, :] @ points_homogeneous[..., None]
+      view_projection_matrix[:, np.newaxis]
+      @ points_homogeneous[..., np.newaxis]
   )
   points_clip_space = points_clip_space[..., 0]
 
@@ -435,18 +441,18 @@ def project_points_for_gnm(
 
 def get_look_at_world_to_camera(
     gnm_np: gnm_numpy.GNM,
-    vertices_world: np.ndarray,
-    azimuthal_angle: np.ndarray | float = 0.0,
-    polar_angle: np.ndarray | float = 0.0,
-    camera_distance: np.ndarray | float | None = DEFAULT_CAMERA_DISTANCE,
-    share_camera: np.ndarray | bool = True,
-    y_up: np.ndarray | bool = False,
+    vertices_world: FloatArray,
+    azimuthal_angle: FloatArray | float = 0.0,
+    polar_angle: FloatArray | float = 0.0,
+    camera_distance: FloatArray | float | None = DEFAULT_CAMERA_DISTANCE,
+    share_camera: npt.NDArray[np.bool_] | bool = True,
+    y_up: npt.NDArray[np.bool_] | bool = False,
     look_at_vertex_groups: Sequence[str] = ('hockey_mask',),
     left_vertex_groups: Sequence[str] = ('ears', '&left'),
     right_vertex_groups: Sequence[str] = ('ears', '&right'),
     forward_vertex_groups: Sequence[str] = ('nose_region',),
-) -> np.ndarray:
-  """Compute world-to-camera matrices for a 'look-at' transform.
+) -> FloatArray:
+  """Computes world-to-camera matrices for a 'look-at' transform.
 
   Returns matrices in OpenCV convention.
 
@@ -468,7 +474,6 @@ def get_look_at_world_to_camera(
   Returns:
     The world-to-camera matrices, (..., 4, 4).
   """
-
   batch_dims = vertices_world.shape[:-2]
 
   if not batch_dims:
@@ -489,7 +494,7 @@ def get_look_at_world_to_camera(
   )
 
   vertices_for_camera = np.where(
-      share_camera[..., None], first_frame_vertices, vertices_world
+      share_camera[..., np.newaxis], first_frame_vertices, vertices_world
   )
 
   gnm_axes = _get_gnm_axes(
@@ -524,13 +529,13 @@ def get_look_at_world_to_camera(
 
 def get_fill_factor_camera_to_image(
     gnm_np: gnm_numpy.GNM,
-    vertices: np.ndarray,
-    target_fill_factor: np.ndarray | float = DEFAULT_TARGET_FILL_FACTOR,
-    camera_distance: np.ndarray | float = DEFAULT_CAMERA_DISTANCE,
+    vertices: FloatArray,
+    target_fill_factor: FloatArray | float = DEFAULT_TARGET_FILL_FACTOR,
+    camera_distance: FloatArray | float = DEFAULT_CAMERA_DISTANCE,
     image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     vertex_group_name: str = 'hockey_mask',
-) -> np.ndarray:
-  """Compute the camera-to-image matrix for a 'fill factor' transform.
+) -> FloatArray:
+  """Computes the camera-to-image matrix for a 'fill factor' transform.
 
   The camera intrinsics are determined to fill the width of the given vertex
   group with the image. Returns matrices in OpenCV convention.
@@ -581,15 +586,15 @@ def get_fill_factor_camera_to_image(
 
 def get_spin_world_to_camera(
     gnm_np: gnm_numpy.GNM,
-    vertices: np.ndarray,
+    vertices: FloatArray,
     has_time_dimension: bool = False,
     spin_period: int = 60,
     spin_azimuth_limit: float = 20.0,
     spin_polar_limit: float = 5.0,
     num_frames: int | None = None,
-    **kwargs,
-) -> np.ndarray:
-  """Compute world-to-camera matrices for a 'spin' transform.
+    **kwargs: Any,
+) -> FloatArray:
+  """Computes world-to-camera matrices for a 'spin' transform.
 
   Args:
     gnm_np: The GNM model.
@@ -606,7 +611,6 @@ def get_spin_world_to_camera(
     The world-to-camera matrices, (spin_period, ..., 4, 4) if has_time_dimension
     is False, otherwise (..., 4, 4).
   """
-
   if num_frames is not None:
     if not has_time_dimension and (
         vertices.ndim < 3 or vertices.shape[0] != num_frames
@@ -624,8 +628,8 @@ def get_spin_world_to_camera(
   max_angle = np.pi * 2 * (num_frames / spin_period)
   angles = np.linspace(-0, max_angle, num_frames)
 
-  azimuthal_angle = np.sin(angles)[..., None] * spin_azimuth_limit
-  polar_angle = np.cos(angles)[..., None] * spin_polar_limit
+  azimuthal_angle = np.sin(angles)[..., np.newaxis] * spin_azimuth_limit
+  polar_angle = np.cos(angles)[..., np.newaxis] * spin_polar_limit
 
   # Broadcast azimuthal and polar angles to the batch dimensions.
   azimuthal_angle = np.broadcast_to(azimuthal_angle, (*batch_dims, 1))
@@ -641,12 +645,12 @@ def get_spin_world_to_camera(
 
 
 def _get_gnm_axes(
-    vertices: np.ndarray,
+    vertices: FloatArray,
     left_vertex_groups: Sequence[str],
     right_vertex_groups: Sequence[str],
     forward_vertex_groups: Sequence[str],
     gnm_np: gnm_numpy.GNM,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[FloatArray, FloatArray, FloatArray]:
   """Determines the right, up, and forwards direction vectors of GNM.
 
   Args:
@@ -659,7 +663,6 @@ def _get_gnm_axes(
   Returns:
     A tuple of right, up, and forwards direction vectors, each (..., 3).
   """
-
   left = _vertex_group_mean(vertices, left_vertex_groups, gnm_np)
   right = _vertex_group_mean(vertices, right_vertex_groups, gnm_np)
   forward_point = _vertex_group_mean(vertices, forward_vertex_groups, gnm_np)
@@ -673,8 +676,8 @@ def _get_gnm_axes(
 
 
 def right_handed_look_at(
-    camera_position: np.ndarray, look_at: np.ndarray, up_vector: np.ndarray
-) -> np.ndarray:
+    camera_position: FloatArray, look_at: FloatArray, up_vector: FloatArray
+) -> FloatArray:
   """Builds a right handed look at view matrix.
 
   Args:
@@ -685,7 +688,6 @@ def right_handed_look_at(
   Returns:
     The right handed look at view matrix, (..., 4, 4).
   """
-
   z_axis = look_at - camera_position
   z_axis /= np.linalg.norm(z_axis, axis=-1, keepdims=True)
 
@@ -694,8 +696,8 @@ def right_handed_look_at(
 
   vertical_axis = np.cross(horizontal_axis, z_axis, axis=-1)
 
-  def _dot_last_axis(arr1, arr2):
-    return np.einsum('...i,...i->...', arr1, arr2)[..., None]
+  def _dot_last_axis(arr1: FloatArray, arr2: FloatArray) -> FloatArray:
+    return np.einsum('...i,...i->...', arr1, arr2)[..., np.newaxis]
 
   batch_shape = horizontal_axis.shape[:-1]
   zeros = np.zeros((*batch_shape, 3), dtype=horizontal_axis.dtype)
@@ -714,11 +716,11 @@ def right_handed_look_at(
 
 
 def _get_camera_offset(
-    head_axes: tuple[np.ndarray, np.ndarray, np.ndarray],
-    camera_distance: np.ndarray,
-    azimuthal_angle: np.ndarray,
-    polar_angle: np.ndarray,
-) -> np.ndarray:
+    head_axes: tuple[FloatArray, FloatArray, FloatArray],
+    camera_distance: FloatArray,
+    azimuthal_angle: FloatArray,
+    polar_angle: FloatArray,
+) -> FloatArray:
   """Determines how to place the camera so it points at the face.
 
   Args:
@@ -741,11 +743,11 @@ def _get_camera_offset(
 
 
 def _right_handed_perspective(
-    vertical_field_of_view: np.ndarray,
-    aspect_ratio: np.ndarray,
-    near: np.ndarray,
-    far: np.ndarray,
-) -> np.ndarray:
+    vertical_field_of_view: FloatArray,
+    aspect_ratio: FloatArray,
+    near: FloatArray,
+    far: FloatArray,
+) -> FloatArray:
   """Builds a right handed perspective projection matrix.
 
   Similar to tensorflow_graphics.rendering.camera.perspective.right_handed.
@@ -759,7 +761,6 @@ def _right_handed_perspective(
   Returns:
     The perspective projection matrix, (..., 4, 4) in OpenGL convention.
   """
-
   itan_half_vertical_field_of_view = 1.0 / np.tan(vertical_field_of_view * 0.5)
   zero = np.zeros_like(itan_half_vertical_field_of_view)
   one = np.ones_like(itan_half_vertical_field_of_view)
@@ -807,10 +808,10 @@ def load_edgeflow_texture(texture_path: epath.Path | None) -> FloatArray | None:
 
 
 def _vertex_group_mean(
-    vertices: np.ndarray,
+    vertices: FloatArray,
     group_names: Sequence[str],
     gnm_np: gnm_numpy.GNM,
-):
+) -> FloatArray:
   """Gets the average point of GNM vertex groups.
 
   Args:
@@ -853,7 +854,7 @@ def load_texture(
     if edgeflow_path is not None:
       edgeflow = load_edgeflow_texture(edgeflow_path)
       if edgeflow is not None:
-        texture_dict[SKIN_UDIM_TILE] = edgeflow[..., None]
+        texture_dict[SKIN_UDIM_TILE] = edgeflow[..., np.newaxis]
   elif isinstance(texture, np.ndarray):
     texture_dict[SKIN_UDIM_TILE] = texture
   elif isinstance(texture, Mapping):
@@ -867,11 +868,12 @@ def load_texture(
           f' {gnm_tiles}.'
       )
 
-  def _to_3channel_uint8(texture_image: np.ndarray) -> npt.NDArray[np.uint8]:
+  def _to_3channel_uint8(
+      texture_image: FloatArray | npt.NDArray[np.uint8],
+  ) -> npt.NDArray[np.uint8]:
     if texture_image.dtype != np.uint8:
-      texture_image = (np.clip(texture_image, 0.0, 1.0) * 255.0).astype(
-          np.uint8
-      )
+      texture_image = np.clip(texture_image, 0.0, 1.0) * 255.0
+    texture_image = texture_image.astype(np.uint8, copy=False)
     if texture_image.shape[-1] == 1:
       texture_image = np.repeat(texture_image, 3, axis=-1)
     return texture_image
@@ -901,9 +903,23 @@ def _udim_tiles_of_texture_key(key: int | np.integer | str) -> list[int]:
   return tiles
 
 
+@overload
 def _adjust_scalar_shape(
-    array: np.ndarray | float, batch_dims: Sequence[int]
-) -> np.ndarray:
+    array: npt.NDArray[np.bool_] | bool, batch_dims: Sequence[int]
+) -> npt.NDArray[np.bool_]:
+  ...
+
+
+@overload
+def _adjust_scalar_shape(
+    array: FloatArray | float, batch_dims: Sequence[int]
+) -> FloatArray:
+  ...
+
+
+def _adjust_scalar_shape(
+    array: npt.NDArray[np.generic] | float, batch_dims: Sequence[int]
+) -> npt.NDArray[np.generic]:
   """Adjusts the shape of a scalar to match the batch dimensions.
 
   Args:
@@ -913,16 +929,17 @@ def _adjust_scalar_shape(
   Returns:
     The adjusted array, (..., 1).
   """
-
   # If the array is a scalar or 1D array, add a final dimension of size 1.
   array = np.array(array)
   if array.ndim <= 1:
-    array = array[..., None]
+    array = array[..., np.newaxis]
 
   return np.broadcast_to(array, (*batch_dims, 1))
 
 
-def get_batch_dim(*arrays: tuple[np.ndarray | None, int]) -> tuple[int, ...]:
+def get_batch_dim(
+    *arrays: tuple[npt.NDArray[np.generic] | None, int],
+) -> tuple[int, ...]:
   """Finds the largest batch dimension that all arrays can be broadcast to.
 
   Requires that all arrays have batch dimensions that can be broadcast together.
@@ -936,6 +953,7 @@ def get_batch_dim(*arrays: tuple[np.ndarray | None, int]) -> tuple[int, ...]:
 
   Returns:
     The batch dimensions that all arrays can be safely broadcast to.
+
   Raises:
     ValueError: If the arrays cannot be broadcast together.
   """

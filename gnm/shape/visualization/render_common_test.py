@@ -26,6 +26,7 @@ from gnm.shape.data.versions import gnm_test_catalog
 from gnm.shape.visualization import camera_conversions
 from gnm.shape.visualization import render_common
 import numpy as np
+import numpy.typing as npt
 
 _TupleOfInts = tuple[int, ...]
 
@@ -44,7 +45,7 @@ def _load_head_gnms() -> dict[str, gnm_numpy.GNM]:
 def _get_random_parameters(
     batch_dims: _TupleOfInts,
     gnm_np: gnm_numpy.GNM,
-) -> dict[str, np.ndarray]:
+) -> dict[str, npt.NDArray[np.float32]]:
   """Returns random GNM parameters.
 
   Args:
@@ -64,12 +65,12 @@ def _get_random_parameters(
       -0.2, 0.2, size=batch_dims + (gnm_np.num_joints, 3)
   )
   translation = np.random.uniform(-0.5, 0.5, size=batch_dims + (3,)) * 0.0
-  return dict(
-      identity=identity.astype(np.float32),
-      expression=expression.astype(np.float32),
-      rotations=rotations.astype(np.float32),
-      translation=translation.astype(np.float32),
-  )
+  return {
+      'identity': identity.astype(np.float32),
+      'expression': expression.astype(np.float32),
+      'rotations': rotations.astype(np.float32),
+      'translation': translation.astype(np.float32),
+  }
 
 
 class TestGetBatchDim(parameterized.TestCase):
@@ -443,7 +444,7 @@ class TestRenderGNMMesh(parameterized.TestCase):
       w, h = kwargs['image_size']
       return np.zeros((n, h, w, 3), dtype=np.float32)
 
-    w2c_opencv = np.eye(4, dtype=np.float32)[None, ...]
+    w2c_opencv = np.eye(4, dtype=np.float32)[np.newaxis]
 
     # Without conversion
     render_common.render_gnm_mesh(
